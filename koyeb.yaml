@@ -1,0 +1,26 @@
+# Koyeb deployment config — https://www.koyeb.com/docs
+# Set DATABASE_URL, BETTER_AUTH_SECRET, APP_ENCRYPTION_KEY, ORIGIN and LEMON_*
+# as secrets in the Koyeb dashboard (Service → Settings → Environment).
+name: aghara
+regions:
+  - fra
+
+services:
+  - name: web
+    instance_type: nano
+    routes:
+      - port: 8000
+        path: /
+    ports:
+      - port: 8000
+        protocol: http
+    health_checks:
+      - port: 8000
+        path: /api/v1/health
+    env:
+      - key: PORT
+        value: '8000'
+      - key: NODE_ENV
+        value: production
+      - key: SELF_HOST
+        value: 'false'

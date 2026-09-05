@@ -1,0 +1,14 @@
+node_modules
+build
+.svelte-kit
+.git
+.github
+.env
+.env.*
+!.env.example
+drizzle/meta/_journal.json.bak
+*.log
+.DS_Store
+.vscode
+plan
+README.md

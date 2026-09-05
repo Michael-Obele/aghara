@@ -1,0 +1,33 @@
+# Fly.io config — https://fly.io/docs/reference/configuration/
+# The scheduler must stay alive, so auto_stop_machines is OFF.
+app = "aghara"
+primary_region = "lhr"
+
+[build]
+dockerfile = "Dockerfile"
+
+[env]
+PORT = "8000"
+NODE_ENV = "production"
+SELF_HOST = "false"
+
+[http_service]
+internal_port = 8000
+force_https = true
+auto_stop_machines = false
+auto_start_machines = true
+min_machines_running = 1
+processes = ["app"]
+
+[http_service.checks]
+[http_service.checks.health]
+interval = "30s"
+timeout = "5s"
+grace_period = "30s"
+method = "GET"
+path = "/api/v1/health"
+
+# Secrets (set with `fly secrets set`):
+#   DATABASE_URL, BETTER_AUTH_SECRET, APP_ENCRYPTION_KEY
+#   ORIGIN=https://aghara.fly.dev
+#   SELF_HOST=true|false, plus LEMON_* when billing is enabled.
