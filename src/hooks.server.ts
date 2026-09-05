@@ -2,6 +2,7 @@ import type { Handle } from '@sveltejs/kit';
 import { building } from '$app/environment';
 import { auth } from '$lib/server/auth';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
+import { startScheduler } from '$lib/server/scheduler';
 
 const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	const session = await auth.api.getSession({ headers: event.request.headers });
@@ -15,3 +16,9 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 };
 
 export const handle: Handle = handleBetterAuth;
+
+// Start the minutely scheduler once per process (skipped during build).
+if (!building && !globalThis.__aghara_scheduler) {
+	globalThis.__aghara_scheduler = true;
+	startScheduler();
+}
