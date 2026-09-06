@@ -7,6 +7,13 @@ WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 COPY . .
+# Koyeb/Docker build has no runtime env — provide dummy build-time vars so
+# `vite build` (which imports server code) doesn't throw. Real values come
+# from Koyeb env at runtime.
+ARG DATABASE_URL=postgresql://build:dummy@localhost:5432/build
+ARG BETTER_AUTH_SECRET=build_dummy_secret_32_chars_long_xxxx
+ARG APP_ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000
+ARG ORIGIN=http://localhost:8000
 RUN bun run build
 
 FROM oven/bun:1-slim
