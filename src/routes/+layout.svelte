@@ -6,21 +6,21 @@
 	import { browser, dev } from '$app/environment';
 	import { Agentation, type AnnotationProps } from 'sv-agentation';
 
-	
-
 	let playgroundAnnotationProps: AnnotationProps = {
 		toolbarPosition: 'bottom-left',
-		outputMode: 'compact',
+		outputMode: 'forensic',
 		pauseAnimations: true,
 		clearOnCopy: true,
 		includeComponentContext: false,
-		includeComputedStyles: false,
+		includeComputedStyles: false
 	};
 
 	let { children } = $props();
 </script>
 
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
+<svelte:head>
+	<link rel="icon" href={favicon} />
+</svelte:head>
 <!-- Dark theme by default; users can switch (choice persists in localStorage). -->
 <ModeWatcher defaultMode="dark" />
 <Toaster />

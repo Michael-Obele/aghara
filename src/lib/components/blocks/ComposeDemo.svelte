@@ -100,14 +100,24 @@
 	}
 </script>
 
-<div class="rounded-xl border bg-card p-5 shadow-sm sm:p-6">
+<div
+	class="rounded-xl border bg-card p-5 shadow-xl ring-1 shadow-primary/5 ring-border transition-shadow duration-300 hover:shadow-2xl hover:shadow-primary/10 sm:p-6"
+>
 	<div class="flex items-center justify-between gap-3">
 		<div class="flex items-center gap-2">
 			<span class="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
 				<Megaphone class="size-4" />
 			</span>
 			<div>
-				<p class="text-sm font-semibold">Live demo</p>
+				<p class="flex items-center gap-2 text-sm font-semibold">
+					Live demo
+					<span class="relative flex size-2" aria-hidden="true">
+						<span
+							class="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60 motion-reduce:animate-none"
+						></span>
+						<span class="relative inline-flex size-2 rounded-full bg-primary"></span>
+					</span>
+				</p>
 				<p class="text-xs text-muted-foreground">No account needed</p>
 			</div>
 		</div>
@@ -125,18 +135,18 @@
 			>
 				<Check class="size-6" />
 			</span>
-			<h3 class="mt-4 font-semibold">Scheduled — Aghara will announce on time.</h3>
+			<h3 class="mt-4 font-semibold">Nice — that is exactly how it works.</h3>
 			<p class="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-				One post, sent to {networkLabel} at {formattedTime}. This is exactly what your account will
-				do — automatically, every time.
+				One post, out to {networkLabel} at {formattedTime}. Create your account, pick a plan, and
+				you can do this for real — same box, same feel.
 			</p>
 			<div class="mt-6 flex flex-wrap items-center justify-center gap-3">
 				<a href="/register">
 					<Button class="gap-2">
-						Create your free account <ArrowRight class="size-4" />
+						Create account, pick a plan <ArrowRight class="size-4" />
 					</Button>
 				</a>
-				<Button variant="ghost" onclick={() => (scheduled = false)}>Edit post</Button>
+				<Button variant="ghost" onclick={() => (scheduled = false)}>Tweak it first</Button>
 			</div>
 		</div>
 	{:else}
