@@ -10,8 +10,10 @@
 	import BlueskyIcon from '$lib/components/brand/BlueskyIcon.svelte';
 	import DiscordIcon from '$lib/components/brand/DiscordIcon.svelte';
 	import LinkedinIcon from '$lib/components/brand/LinkedinIcon.svelte';
+	import MastodonIcon from '$lib/components/brand/MastodonIcon.svelte';
+	import TelegramIcon from '$lib/components/brand/TelegramIcon.svelte';
 	import ThreadsIcon from '$lib/components/brand/ThreadsIcon.svelte';
-	import { Megaphone, Send, AtSign, CalendarClock, Check, ArrowRight } from '@lucide/svelte/icons';
+	import { Megaphone, CalendarClock, Check, ArrowRight } from '@lucide/svelte/icons';
 
 	// Reciprocity + IKEA effect: visitors experience the real flow before signing up.
 	// Smart defaults: never start blank — a real post and common networks are pre-selected,
@@ -34,9 +36,9 @@
 
 	const networks: Network[] = [
 		{ key: 'bluesky', label: 'Bluesky', icon: BlueskyIcon },
-		{ key: 'telegram', label: 'Telegram', icon: Send },
+		{ key: 'telegram', label: 'Telegram', icon: TelegramIcon },
 		{ key: 'discord', label: 'Discord', icon: DiscordIcon },
-		{ key: 'mastodon', label: 'Mastodon', icon: AtSign },
+		{ key: 'mastodon', label: 'Mastodon', icon: MastodonIcon },
 		{ key: 'linkedin', label: 'LinkedIn', icon: LinkedinIcon },
 		{ key: 'threads', label: 'Threads', icon: ThreadsIcon }
 	];

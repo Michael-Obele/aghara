@@ -1,6 +1,7 @@
 // Minutely scheduler — polls due scheduled_posts and publishes them.
 // Started once from hooks.server.ts (guarded against double-start).
 import { publishDue } from './services/publisher';
+import { keyFingerprint } from './services/crypto';
 
 let started = false;
 
@@ -27,5 +28,5 @@ export function startScheduler(): void {
 		}
 	});
 
-	console.log('[aghara] scheduler started (every minute)');
+	console.log(`[aghara] scheduler started (every minute) key=${keyFingerprint()}`);
 }

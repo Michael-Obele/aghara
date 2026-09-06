@@ -1,7 +1,13 @@
 // AES-256-GCM encrypt/decrypt for channel credentials at rest.
 // APP_ENCRYPTION_KEY must be 32 bytes expressed as 64 hex chars.
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { env } from '$env/dynamic/private';
+
+/** Short, non-secret fingerprint of the active key — helps spot key mismatches. */
+export function keyFingerprint(): string {
+	const hex = env.APP_ENCRYPTION_KEY ?? '';
+	return createHash('sha256').update(hex).digest('hex').slice(0, 8);
+}
 
 function getKey(): Buffer {
 	const hex = env.APP_ENCRYPTION_KEY;
@@ -19,20 +25,32 @@ export function encrypt(plain: string): string {
 	const cipher = createCipheriv('aes-256-gcm', getKey(), iv);
 	const encrypted = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
 	const tag = cipher.getAuthTag();
-	return [iv.toString('base64'), tag.toString('base64'), encrypted.toString('base64')].join('.');
+	const out = [iv.toString('base64'), tag.toString('base64'), encrypted.toString('base64')].join(
+		'.'
+	);
+	console.log(`[aghara] crypto.encrypt key=${keyFingerprint()} bytes=${plain.length}`);
+	return out;
 }
 
 /** Decrypt a payload produced by `encrypt`. Throws on tampering (bad auth tag). */
 export function decrypt(payload: string): string {
 	const [ivB64, tagB64, dataB64] = payload.split('.');
 	if (!ivB64 || !tagB64 || !dataB64) throw new Error('Malformed encrypted payload');
-	const decipher = createDecipheriv('aes-256-gcm', getKey(), Buffer.from(ivB64, 'base64'));
-	decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
-	const decrypted = Buffer.concat([
-		decipher.update(Buffer.from(dataB64, 'base64')),
-		decipher.final()
-	]);
-	return decrypted.toString('utf8');
+	try {
+		const decipher = createDecipheriv('aes-256-gcm', getKey(), Buffer.from(ivB64, 'base64'));
+		decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
+		const decrypted = Buffer.concat([
+			decipher.update(Buffer.from(dataB64, 'base64')),
+			decipher.final()
+		]);
+		console.log(`[aghara] crypto.decrypt ok key=${keyFingerprint()}`);
+		return decrypted.toString('utf8');
+	} catch (err) {
+		console.error(
+			`[aghara] crypto.decrypt FAILED key=${keyFingerprint()} err=${err instanceof Error ? err.message : err}`
+		);
+		throw err;
+	}
 }
 
 /** Convenience: encrypt an object (used by connectAccount). */

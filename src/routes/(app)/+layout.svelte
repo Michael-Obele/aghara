@@ -61,14 +61,14 @@
 <div class="flex min-h-svh">
 	<!-- Desktop sidebar -->
 	<aside class="hidden w-60 shrink-0 flex-col border-r bg-sidebar md:flex">
-		<div class="flex h-16 items-center gap-2 border-b px-5">
+		<a href="/" class="flex h-16 items-center gap-2 border-b px-5">
 			<span
 				class="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"
 			>
 				<Megaphone class="size-4" />
 			</span>
 			<span class="font-semibold tracking-tight">Aghara</span>
-		</div>
+		</a>
 		<nav class="flex-1 space-y-1 p-3">
 			{#each nav as item}
 				<a

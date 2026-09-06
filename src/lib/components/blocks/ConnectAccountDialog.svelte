@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { connectAccountForm, listAccountsQuery } from '$lib/remote';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -13,8 +12,11 @@
 		DialogHeader,
 		DialogTitle
 	} from '$lib/components/ui/dialog/index.js';
-	import { Bird, Send, Hash, AtSign } from '@lucide/svelte/icons';
+	import BlueskyIcon from '$lib/components/brand/BlueskyIcon.svelte';
+	import DiscordIcon from '$lib/components/brand/DiscordIcon.svelte';
 	import LinkedinIcon from '$lib/components/brand/LinkedinIcon.svelte';
+	import MastodonIcon from '$lib/components/brand/MastodonIcon.svelte';
+	import TelegramIcon from '$lib/components/brand/TelegramIcon.svelte';
 	import ThreadsIcon from '$lib/components/brand/ThreadsIcon.svelte';
 	import type { Component } from 'svelte';
 
@@ -34,22 +36,22 @@
 		bluesky: {
 			title: 'Connect Bluesky',
 			description: 'Use your handle and an app password (Settings → App passwords).',
-			icon: Bird
+			icon: BlueskyIcon
 		},
 		telegram: {
 			title: 'Connect Telegram',
 			description: 'Create a bot with @BotFather, then paste its token and your chat ID.',
-			icon: Send
+			icon: TelegramIcon
 		},
 		discord: {
 			title: 'Connect Discord',
 			description: 'Paste a channel webhook URL from Server Settings → Integrations.',
-			icon: Hash
+			icon: DiscordIcon
 		},
 		mastodon: {
 			title: 'Connect Mastodon',
 			description: 'Your instance URL and an access token with write:statuses scope.',
-			icon: AtSign
+			icon: MastodonIcon
 		},
 		linkedin: {
 			title: 'Connect LinkedIn',
@@ -65,17 +67,26 @@
 
 	const meta = $derived(channelMeta[channel] ?? channelMeta.bluesky);
 
-	function onEnhance({ formData }: { formData: FormData }) {
-		formData.set('channel', channel);
-		return async ({ result }: { result: { type: string; message?: string } }) => {
-			if (result.type === 'success') {
-				toast.success('Connected.');
-				accounts.refresh();
-				onClose();
-			} else {
-				toast.error(result.message || 'Could not connect that account.');
+	// Remote-function form wiring: `connectAccountForm.enhance(...)` registers
+	// this callback and returns the form instance to spread. Do NOT use
+	// `use:enhance` from `$app/forms` — that posts to the page itself (405).
+	async function onSubmit(form: { submit: () => Promise<boolean> }) {
+		try {
+			const valid = await form.submit();
+			if (!valid) {
+				toast.error('Please check the form — some fields are invalid.');
+				return;
 			}
-		};
+			if (connectAccountForm.result?.ok === false) {
+				toast.error(connectAccountForm.result.message || 'Could not connect that account.');
+				return;
+			}
+			toast.success('Connected.');
+			accounts.refresh();
+			onClose();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Could not connect that account.');
+		}
 	}
 </script>
 
@@ -89,7 +100,8 @@
 			<DialogDescription>{meta.description}</DialogDescription>
 		</DialogHeader>
 
-		<form {...connectAccountForm} use:enhance={onEnhance} class="space-y-4">
+		<form {...connectAccountForm.enhance(onSubmit)} class="space-y-4">
+			<input type="hidden" name="channel" value={channel} />
 			{#if channel === 'bluesky'}
 				<div class="space-y-2">
 					<Label for="handle">Handle</Label>

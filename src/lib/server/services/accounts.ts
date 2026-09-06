@@ -49,6 +49,7 @@ export async function connectAccount(
 	await checkLimit(userId, 'accounts');
 
 	const provider = getProvider(input.channel);
+	console.log(`[aghara] connectAccount: user=${userId} channel=${input.channel}`);
 
 	// Verify credentials at connect time; providers may return extra fields
 	// (e.g. LinkedIn resolves the author URN from the token).
@@ -59,6 +60,7 @@ export async function connectAccount(
 	const label = input.label?.trim() || defaultLabel(input);
 
 	const encrypted = encryptObject(creds);
+	console.log(`[aghara] connectAccount: encrypted ${input.channel} (label=${label})`);
 	try {
 		const [row] = await db
 			.insert(channelAccounts)
@@ -68,6 +70,9 @@ export async function connectAccount(
 				channel: channelAccounts.channel,
 				label: channelAccounts.label
 			});
+		console.log(
+			`[aghara] connectAccount: inserted ${row.id} channel=${row.channel} label=${row.label}`
+		);
 		return row;
 	} catch (err) {
 		if (err instanceof Error && /duplicate key/i.test(err.message)) {

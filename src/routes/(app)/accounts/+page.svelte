@@ -5,8 +5,12 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import ConnectAccountDialog from '$lib/components/blocks/ConnectAccountDialog.svelte';
-	import { Bird, Send, Hash, AtSign, Link2, Plus, Trash2 } from '@lucide/svelte/icons';
+	import { Link2, Plus, Trash2 } from '@lucide/svelte/icons';
+	import BlueskyIcon from '$lib/components/brand/BlueskyIcon.svelte';
+	import DiscordIcon from '$lib/components/brand/DiscordIcon.svelte';
 	import LinkedinIcon from '$lib/components/brand/LinkedinIcon.svelte';
+	import MastodonIcon from '$lib/components/brand/MastodonIcon.svelte';
+	import TelegramIcon from '$lib/components/brand/TelegramIcon.svelte';
 	import ThreadsIcon from '$lib/components/brand/ThreadsIcon.svelte';
 
 	const accounts = listAccountsQuery();
@@ -15,10 +19,10 @@
 	let dialogChannel = $state('bluesky');
 
 	const channels = [
-		{ id: 'bluesky', name: 'Bluesky', icon: Bird, note: 'handle + app password' },
-		{ id: 'telegram', name: 'Telegram', icon: Send, note: 'bot token + chat ID' },
-		{ id: 'discord', name: 'Discord', icon: Hash, note: 'webhook URL' },
-		{ id: 'mastodon', name: 'Mastodon', icon: AtSign, note: 'instance + token' },
+		{ id: 'bluesky', name: 'Bluesky', icon: BlueskyIcon, note: 'handle + app password' },
+		{ id: 'telegram', name: 'Telegram', icon: TelegramIcon, note: 'bot token + chat ID' },
+		{ id: 'discord', name: 'Discord', icon: DiscordIcon, note: 'webhook URL' },
+		{ id: 'mastodon', name: 'Mastodon', icon: MastodonIcon, note: 'instance + token' },
 		{ id: 'linkedin', name: 'LinkedIn', icon: LinkedinIcon, note: 'access token' },
 		{ id: 'threads', name: 'Threads', icon: ThreadsIcon, note: 'Meta token' }
 	];
@@ -44,13 +48,13 @@
 
 {#snippet channelIcon(id: string)}
 	{#if id === 'bluesky'}
-		<Bird class="size-4" />
+		<BlueskyIcon class="size-4" />
 	{:else if id === 'telegram'}
-		<Send class="size-4" />
+		<TelegramIcon class="size-4" />
 	{:else if id === 'discord'}
-		<Hash class="size-4" />
+		<DiscordIcon class="size-4" />
 	{:else if id === 'mastodon'}
-		<AtSign class="size-4" />
+		<MastodonIcon class="size-4" />
 	{:else if id === 'linkedin'}
 		<LinkedinIcon class="size-4" />
 	{:else if id === 'threads'}

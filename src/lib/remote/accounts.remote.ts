@@ -11,7 +11,18 @@ export const listAccountsQuery = query(async () => {
 
 export const connectAccountForm = form(ConnectAccountSchema, async (data) => {
 	const userId = requireUserId();
-	return connectAccount(userId, data);
+	try {
+		await connectAccount(userId, data);
+		return { ok: true as const };
+	} catch (err) {
+		// Surface expected failures (duplicate, plan limit, provider verify
+		// rejections like a bad Bluesky password) as a form result instead of a
+		// thrown 500, which production would mask to a generic message.
+		return {
+			ok: false as const,
+			message: err instanceof Error ? err.message : 'Could not connect that account.'
+		};
+	}
 });
 
 export const disconnectAccountCommand = command(

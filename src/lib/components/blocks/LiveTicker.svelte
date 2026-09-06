@@ -2,8 +2,10 @@
 	import BlueskyIcon from '$lib/components/brand/BlueskyIcon.svelte';
 	import DiscordIcon from '$lib/components/brand/DiscordIcon.svelte';
 	import LinkedinIcon from '$lib/components/brand/LinkedinIcon.svelte';
+	import MastodonIcon from '$lib/components/brand/MastodonIcon.svelte';
+	import TelegramIcon from '$lib/components/brand/TelegramIcon.svelte';
 	import ThreadsIcon from '$lib/components/brand/ThreadsIcon.svelte';
-	import { Send, AtSign, Check } from '@lucide/svelte/icons';
+	import { Check } from '@lucide/svelte/icons';
 	import type { Component } from 'svelte';
 
 	interface Tick {
@@ -40,14 +42,14 @@
 			id: 't4',
 			text: 'Patch 1.4.2 rolling out now',
 			network: 'Telegram',
-			icon: Send,
+			icon: TelegramIcon,
 			time: '09:30'
 		},
 		{
 			id: 't5',
 			text: 'Weekend build log — 3 lessons',
 			network: 'Mastodon',
-			icon: AtSign,
+			icon: MastodonIcon,
 			time: '09:15'
 		},
 		{
