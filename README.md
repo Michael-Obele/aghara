@@ -9,7 +9,7 @@ once; Aghara posts on schedule with automatic retries.
 - **Runtime:** Bun · **Framework:** SvelteKit 2 + Svelte 5 (runes) · **UI:** shadcn-svelte + Tailwind v4
 - **DB:** Postgres via Drizzle + Neon (any Postgres works) · **Validation:** Valibot
 - **Auth:** Better Auth (email/password + optional GitHub) · **Billing:** Lemon Squeezy (optional, `SELF_HOST=true` disables it)
-- **Scheduler:** `node-cron` every minute, in-process — no Redis, no Temporal
+- **Scheduler:** `Bun.cron` every minute, in-process — no Redis, no Temporal
 
 ## Quick start
 

@@ -13,6 +13,13 @@ const config = {
 			async: true
 		}
 	},
+	vitePlugin: {
+		inspector: {
+			toggleKeyCombo: 'alt-x',
+			showToggleButton: 'active',
+			toggleButtonPos: 'bottom-right'
+		}
+	},
 
 	kit: {
 		// adapter-node: single Node/Bun process for Koyeb + Fly.io (Docker).
