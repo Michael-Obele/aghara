@@ -50,7 +50,12 @@ const PostsInputSchema = v.variant('action', [
 		)
 	}),
 	v.object({ action: v.literal('publish_now'), scheduledId: v.pipe(v.string(), v.uuid()) }),
-	v.object({ action: v.literal('cancel'), scheduledId: v.pipe(v.string(), v.uuid()) })
+	v.object({ action: v.literal('cancel'), scheduledId: v.pipe(v.string(), v.uuid()) }),
+	v.object({
+		action: v.literal('retry'),
+		scheduledId: v.pipe(v.string(), v.uuid()),
+		runAt: v.pipe(v.string(), v.isoTimestamp())
+	})
 ]);
 
 const CONNECT_FIELDS = [
@@ -118,7 +123,7 @@ export function registerTools(server: McpServer<StandardSchemaV1>): void {
 		{
 			name: 'aghara_posts',
 			description:
-				'Manage scheduled posts. Actions: list — list scheduled posts (optional status filter); create — schedule a new post with targets; publish_now — publish a queued post immediately; cancel — cancel a queued post.',
+				'Manage scheduled posts. Actions: list — list scheduled posts (optional status filter); create — schedule a new post with targets; publish_now — publish a queued post immediately; cancel — cancel a queued post; retry — re-queue a failed post at a new ISO time (runAt).',
 			schema: PostsInputSchema
 		},
 		async (input) => {
@@ -144,6 +149,11 @@ export function registerTools(server: McpServer<StandardSchemaV1>): void {
 					case 'cancel':
 						return await json(`/api/v1/scheduled/${input.scheduledId}`, {
 							method: 'DELETE'
+						});
+					case 'retry':
+						return await json(`/api/v1/scheduled/${input.scheduledId}/retry`, {
+							method: 'POST',
+							body: { runAt: input.runAt }
 						});
 				}
 			} catch (err) {
