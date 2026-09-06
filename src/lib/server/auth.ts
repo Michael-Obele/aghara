@@ -10,6 +10,16 @@ export const auth = betterAuth({
 	secret: env.BETTER_AUTH_SECRET,
 	database: drizzleAdapter(db, { provider: 'pg' }),
 	emailAndPassword: { enabled: true },
+	user: {
+		additionalFields: {
+			// role: 'user' | 'admin'. Admin is set by the seed script only (not client-settable).
+			role: {
+				type: 'string',
+				defaultValue: 'user',
+				input: false
+			}
+		}
+	},
 	...(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
 		? {
 				socialProviders: {

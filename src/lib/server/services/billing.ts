@@ -19,11 +19,21 @@ export function isSelfHost(): boolean {
 	return env.SELF_HOST === 'true';
 }
 
+/** True when the user has role=admin (set via `bun run seed:admin`). */
+async function isAdmin(userId: string): Promise<boolean> {
+	const [row] = await db.select({ role: user.role }).from(user).where(eq(user.id, userId));
+	return row?.role === 'admin';
+}
+
 export async function getPlan(
 	userId: string
 ): Promise<{ plan: Plan | null; limits: (typeof PLANS)[keyof typeof PLANS] | null }> {
 	if (isSelfHost()) {
 		return { plan: 'self-host', limits: null };
+	}
+	// Admin is always pro — no expiry, bypasses plan limits.
+	if (await isAdmin(userId)) {
+		return { plan: 'pro', limits: PLANS.pro };
 	}
 	const [row] = await db.select().from(subscriptions).where(eq(subscriptions.userId, userId));
 	const active = row && row.status === 'active';
