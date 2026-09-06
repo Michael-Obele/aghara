@@ -21,14 +21,5 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
-plan/api-remote.md
-plan/architecture.md
-plan/auth-billing.md
-plan/build-order.md
-plan/database.md
-plan/deploy.md
-plan/lemon-squeezy-setup.md
-plan/mcp.md
-plan/notes.md
-plan/providers.md
-plan/README.md
+plan/
+.playwright-mcp/
