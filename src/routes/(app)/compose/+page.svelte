@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
-	import { createPostForm, listAccountsQuery } from '$lib/remote';
+	import { cn } from '$lib/utils';
+	import { createPostForm, listAccountsQuery, listPlatformsQuery } from '$lib/remote';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import {
 		Card,
@@ -15,12 +15,24 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
-	import { Send, Plus, Trash2, Link2, ArrowRight, Megaphone } from '@lucide/svelte/icons';
+	import {
+		Send,
+		Plus,
+		Trash2,
+		Link2,
+		ArrowRight,
+		Megaphone,
+		FileText,
+		ListTree
+	} from '@lucide/svelte/icons';
 
 	const accounts = listAccountsQuery();
+	const platforms = listPlatformsQuery();
 
 	// Smart defaults: pre-fill the first account and a sensible time — never start empty.
 	let body = $state('');
+	let isThread = $state(false);
+	let segments = $state(['']);
 	let mediaUrl = $state('');
 	let mediaUrls = $state<string[]>([]);
 	let targets = $state<{ channelAccountId: string; runAtLocal: string; runAtIso: string }[]>([]);
@@ -65,37 +77,58 @@
 		return new Date(local).toISOString();
 	}
 
-	// Grapheme count (matches the server's Bluesky 300-char limit).
-	const graphemes = $derived.by(() => {
+	// Grapheme count (matches the server-side per-platform limits).
+	function graphemeCount(text: string): number {
 		try {
-			return [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(body)].length;
+			return [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)].length;
 		} catch {
-			return [...body].length;
+			return [...text].length;
 		}
-	});
+	}
 
-	const hasBlueskyTarget = $derived(
-		targets.some(
-			(t) => accounts.current?.find((a) => a.id === t.channelAccountId)?.channel === 'bluesky'
+	const composedText = $derived(isThread ? segments.join('\n\n') : body);
+	const graphemes = $derived(graphemeCount(composedText));
+	const submittedSegments = $derived(segments.map((s) => s.trim()).filter(Boolean));
+
+	// Active platform = the first target with an account chosen (drives limits/hints).
+	const activeTarget = $derived(targets.find((t) => t.channelAccountId));
+	const activeChannel = $derived(
+		accounts.current?.find((a) => a.id === activeTarget?.channelAccountId)?.channel
+	);
+	const activePlatform = $derived(platforms.current?.find((p) => p.channel === activeChannel));
+
+	const canSplit = $derived(
+		Boolean(
+			activePlatform && (activePlatform.features.threads || activePlatform.features.sequentialSplit)
 		)
 	);
-	const overLimit = $derived(hasBlueskyTarget && graphemes > 300);
+	const overLimit = $derived(
+		Boolean(activePlatform && !canSplit && graphemes > activePlatform.maxLength)
+	);
+	const willSplit = $derived(
+		Boolean(activePlatform && canSplit && graphemes > activePlatform.maxLength)
+	);
 
-	function onEnhance({ formData }: { formData: FormData }) {
-		formData.set('body', body);
-		targets.forEach((t, i) => {
-			formData.set(`targets[${i}].channelAccountId`, t.channelAccountId);
-			formData.set(`targets[${i}].runAt`, toIso(t.runAtLocal));
-		});
-		mediaUrls.forEach((u, i) => formData.set(`mediaUrls[${i}]`, u));
-		return async ({ result }: { result: { type: string; message?: string } }) => {
-			if (result.type === 'success') {
-				toast.success('Scheduled — Aghara will announce on time.');
-				goto('/schedule');
-			} else {
-				toast.error(result.message || 'Could not schedule the post.');
+	// Remote-function form wiring: `createPostForm.enhance(...)` registers this
+	// callback and returns the form instance to spread. Do NOT use `use:enhance`
+	// from `$app/forms` — that posts to the page itself (405). Body, targets and
+	// media are carried by hidden inputs inside the form (bound to state below).
+	async function onSubmit(form: { submit: () => Promise<boolean> }) {
+		try {
+			const valid = await form.submit();
+			if (!valid) {
+				toast.error('Please check the form — some fields are invalid.');
+				return;
 			}
-		};
+			if (createPostForm.result?.ok === false) {
+				toast.error(createPostForm.result.message || 'Could not schedule the post.');
+				return;
+			}
+			toast.success('Scheduled — Aghara will announce on time.');
+			goto('/schedule');
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Could not schedule the post.');
+		}
 	}
 </script>
 
@@ -119,7 +152,28 @@
 			</a>
 		</div>
 	{:else}
-		<form {...createPostForm} use:enhance={onEnhance}>
+		<form {...createPostForm.enhance(onSubmit)}>
+			<input
+				type="hidden"
+				name="body"
+				value={isThread ? submittedSegments.join('\n\n') || body : body}
+			/>
+			{#if isThread}
+				{#each submittedSegments as seg, i (i)}
+					<input type="hidden" name={`segments[${i}]`} value={seg} />
+				{/each}
+			{/if}
+			{#each targets as target, i (i)}
+				<input
+					type="hidden"
+					name={`targets[${i}].channelAccountId`}
+					value={target.channelAccountId}
+				/>
+				<input type="hidden" name={`targets[${i}].runAt`} value={toIso(target.runAtLocal)} />
+			{/each}
+			{#each mediaUrls as url, i (url)}
+				<input type="hidden" name={`mediaUrls[${i}]`} value={url} />
+			{/each}
 			<div class="grid gap-6 lg:grid-cols-2">
 				<Card>
 					<CardHeader>
@@ -128,21 +182,90 @@
 					</CardHeader>
 					<CardContent class="space-y-4">
 						<div class="space-y-2">
-							<Label for="body">Post</Label>
-							<Textarea
-								id="body"
-								bind:value={body}
-								rows={6}
-								placeholder="What do you want to announce?"
-								class="resize-none"
-							/>
-							<p
-								class="text-right text-xs"
-								class:text-destructive={overLimit}
-								class:text-muted-foreground={!overLimit}
-							>
-								{graphemes}{hasBlueskyTarget ? '/300' : ''} characters
-							</p>
+							<div class="flex items-center justify-between gap-3">
+								<Label for="body">Post</Label>
+								<div class="flex overflow-hidden rounded-md border">
+									<button
+										type="button"
+										class={cn(
+											'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition',
+											!isThread ? 'bg-secondary text-foreground' : 'text-muted-foreground'
+										)}
+										onclick={() => (isThread = false)}
+									>
+										<FileText class="size-3.5" /> Single
+									</button>
+									<button
+										type="button"
+										class={cn(
+											'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition',
+											isThread ? 'bg-secondary text-foreground' : 'text-muted-foreground'
+										)}
+										onclick={() => (isThread = true)}
+									>
+										<ListTree class="size-3.5" /> Thread
+									</button>
+								</div>
+							</div>
+
+							{#if !isThread}
+								<Textarea
+									id="body"
+									bind:value={body}
+									rows={6}
+									placeholder="What do you want to announce?"
+									class="resize-none"
+								/>
+							{:else}
+								{#each segments as seg, i (i)}
+									<div class="space-y-1.5">
+										<div class="flex items-center justify-between">
+											<span class="text-xs font-medium text-muted-foreground">Part {i + 1}</span>
+											{#if segments.length > 1}
+												<button
+													type="button"
+													class="text-muted-foreground transition hover:text-destructive"
+													aria-label="Remove part"
+													onclick={() => (segments = segments.filter((_, j) => j !== i))}
+												>
+													<Trash2 class="size-3.5" />
+												</button>
+											{/if}
+										</div>
+										<Textarea
+											bind:value={segments[i]}
+											rows={4}
+											placeholder={`Part ${i + 1} — up to ${activePlatform?.maxLength ?? ''} chars`}
+											class="resize-none"
+										/>
+									</div>
+								{/each}
+								<Button
+									type="button"
+									variant="outline"
+									class="w-full gap-2"
+									onclick={() => (segments = [...segments, ''])}
+								>
+									<Plus class="size-4" /> Add part
+								</Button>
+							{/if}
+
+							<div class="space-y-1">
+								<p
+									class="text-right text-xs"
+									class:text-destructive={overLimit}
+									class:text-muted-foreground={!overLimit}
+								>
+									{graphemes}{activePlatform ? `/${activePlatform.maxLength}` : ''} characters
+								</p>
+								{#if willSplit}
+									<p class="text-right text-xs text-muted-foreground">
+										Over the {activePlatform?.maxLength}-char limit — Aghara will auto-split into a
+										{activePlatform?.features.threads ? 'thread' : 'series of messages'} on
+										{activePlatform?.name}.
+									</p>
+								{/if}
+							</div>
 						</div>
 
 						<div class="space-y-2">
@@ -241,10 +364,15 @@
 					<CardFooter class="flex-col items-stretch gap-3">
 						{#if overLimit}
 							<p class="text-sm text-destructive">
-								Bluesky allows 300 characters — trim your post before scheduling.
+								{activePlatform?.name} allows {activePlatform?.maxLength} characters and can't split —
+								trim your post or use a thread-capable network.
 							</p>
 						{/if}
-						<Button type="submit" class="w-full gap-2" disabled={overLimit || !body.trim()}>
+						<Button
+							type="submit"
+							class="w-full gap-2"
+							disabled={overLimit || (isThread ? submittedSegments.length === 0 : !body.trim())}
+						>
 							<Send class="size-4" /> Schedule
 							<ArrowRight class="size-4" />
 						</Button>

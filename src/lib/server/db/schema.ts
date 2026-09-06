@@ -43,12 +43,15 @@ export const channelAccounts = pgTable(
 );
 
 // posts — the composed message (one per user intent).
+// segments: explicit thread parts. Empty array => providers auto-split `body`
+// into a thread (thread-capable platforms) or sequential messages (Telegram/Discord).
 export const posts = pgTable('posts', {
 	id: uuid('id').primaryKey().defaultRandom(),
 	userId: text('user_id')
 		.notNull()
 		.references(() => user.id, { onDelete: 'cascade' }),
 	body: text('body').notNull(),
+	segments: jsonb('segments').$type<string[]>().default([]),
 	mediaUrls: jsonb('media_urls').$type<string[]>().default([]),
 	createdAt: timestamp('created_at').defaultNow()
 });
@@ -70,6 +73,7 @@ export const scheduledPosts = pgTable(
 		attempts: integer('attempts').notNull().default(0),
 		lastError: text('last_error'),
 		postedUrl: text('posted_url'),
+		postedUrls: jsonb('posted_urls').$type<string[]>().default([]),
 		postedAt: timestamp('posted_at', { withTimezone: true })
 	},
 	(t) => [index('ix_due').on(t.status, t.runAt)]

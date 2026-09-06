@@ -4,3 +4,4 @@ export * from './accounts.remote';
 export * from './posts.remote';
 export * from './billing.remote';
 export * from './tokens.remote';
+export * from './platforms.remote';

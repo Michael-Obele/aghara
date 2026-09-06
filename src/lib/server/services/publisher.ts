@@ -20,6 +20,12 @@ export async function publishDue(): Promise<number> {
 		.where(and(eq(scheduledPosts.status, 'queued'), lte(scheduledPosts.runAt, new Date())))
 		.limit(BATCH_SIZE);
 
+	if (due.length > 0) {
+		console.log(
+			`[aghara] publishDue: ${due.length} due row(s): ${due.map((r) => r.id).join(', ')}`
+		);
+	}
+
 	let processed = 0;
 	for (const row of due) {
 		if (inFlight.has(row.id)) continue;
@@ -45,11 +51,13 @@ export async function publishOne(scheduledId: string): Promise<void> {
 	if (claimed.length === 0) return;
 
 	const row = claimed[0];
+	console.log(`[aghara] publishOne: claimed ${row.id} attempt=${row.attempts}`);
 	const [post, account] = await Promise.all([
 		db.select().from(posts).where(eq(posts.id, row.postId)).limit(1),
 		db.select().from(channelAccounts).where(eq(channelAccounts.id, row.channelAccountId)).limit(1)
 	]);
 	if (!post[0] || !account[0]) {
+		console.error(`[aghara] publishOne: ${row.id} missing post or account`);
 		await markFailed(row.id, row.attempts, 'Missing post or account');
 		return;
 	}
@@ -57,33 +65,49 @@ export async function publishOne(scheduledId: string): Promise<void> {
 	let creds: Record<string, unknown>;
 	try {
 		creds = decryptObject<Record<string, unknown>>(account[0].credentials);
-	} catch {
-		await markFailed(row.id, row.attempts, 'Failed to decrypt credentials');
+		console.log(
+			`[aghara] publishOne: ${row.id} credentials decrypted (channel=${account[0].channel}, label=${account[0].label})`
+		);
+	} catch (err) {
+		const reason = err instanceof Error ? err.message : String(err);
+		console.error(`[aghara] publishOne: ${row.id} decrypt failed: ${reason}`);
+		await markFailed(row.id, row.attempts, `Failed to decrypt credentials: ${reason}`);
 		return;
 	}
 
 	try {
 		const provider = getProvider(account[0].channel);
+		console.log(`[aghara] publishOne: ${row.id} publishing to ${account[0].channel}`);
 		const result = await provider.publish(
-			{ body: post[0].body, mediaUrls: post[0].mediaUrls ?? [] },
+			{
+				body: post[0].body,
+				segments: post[0].segments ?? [],
+				mediaUrls: post[0].mediaUrls ?? []
+			},
 			creds
 		);
 		await db
 			.update(scheduledPosts)
 			.set({
 				status: 'posted',
-				postedUrl: result.url ?? null,
+				postedUrl: result.url ?? result.postedUrls?.[0] ?? null,
+				postedUrls: result.postedUrls ?? (result.url ? [result.url] : []),
 				postedAt: new Date(),
 				lastError: null
 			})
 			.where(eq(scheduledPosts.id, row.id));
+		console.log(`[aghara] publishOne: ${row.id} posted url=${result.url ?? 'n/a'}`);
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
+		console.error(`[aghara] publishOne: ${row.id} publish failed: ${message}`);
 		await markFailed(row.id, row.attempts, message);
 	}
 }
 
 async function markFailed(id: string, attempts: number, message: string): Promise<void> {
+	console.error(
+		`[aghara] markFailed: ${id} attempt=${attempts} -> ${attempts >= MAX_ATTEMPTS ? 'FAILED' : 'retry'} reason=${message}`
+	);
 	if (attempts >= MAX_ATTEMPTS) {
 		await db
 			.update(scheduledPosts)

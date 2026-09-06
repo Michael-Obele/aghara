@@ -1,28 +1,19 @@
 // Provider registry — one entry per channel. The publisher looks up by channel.
-import * as bluesky from './bluesky';
-import * as telegram from './telegram';
-import * as discord from './discord';
-import * as mastodon from './mastodon';
-import * as linkedin from './linkedin';
-import * as threads from './threads';
+import type { Platform, PlatformInfo } from './types';
+import { bluesky } from './bluesky';
+import { telegram } from './telegram';
+import { discord } from './discord';
+import { mastodon } from './mastodon';
+import { linkedin } from './linkedin';
+import { threads } from './threads';
 
-export interface Provider {
-	channel: string;
-	maxLength: number;
-	verify: (creds: Record<string, unknown>) => Promise<void | Partial<Record<string, unknown>>>;
-	publish: (
-		input: { body: string; mediaUrls: string[] },
-		creds: Record<string, unknown>
-	) => Promise<{ url?: string }>;
-}
-
-export const providers: Record<string, Provider> = {
-	bluesky: bluesky as unknown as Provider,
-	telegram: telegram as unknown as Provider,
-	discord: discord as unknown as Provider,
-	mastodon: mastodon as unknown as Provider,
-	linkedin: linkedin as unknown as Provider,
-	threads: threads as unknown as Provider
+export const providers: Record<string, Platform> = {
+	bluesky,
+	telegram,
+	discord,
+	mastodon,
+	linkedin,
+	threads
 };
 
 export const channelNames: Record<string, string> = {
@@ -34,8 +25,18 @@ export const channelNames: Record<string, string> = {
 	threads: 'Threads'
 };
 
-export function getProvider(channel: string): Provider {
+export function getProvider(channel: string): Platform {
 	const provider = providers[channel];
 	if (!provider) throw new Error(`Unknown channel: ${channel}`);
 	return provider;
+}
+
+/** Serializable capability matrix for the client (drives the compose UI). */
+export function listPlatforms(): PlatformInfo[] {
+	return Object.values(providers).map((p) => ({
+		channel: p.channel,
+		name: p.name,
+		maxLength: p.maxLength,
+		features: p.features
+	}));
 }
