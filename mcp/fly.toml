@@ -1,0 +1,31 @@
+# Fly.io config — aghara-mcp (remote MCP server). Spins down when idle.
+# The main aghara app runs forever (auto_stop off); this service stops on inactivity.
+app = "aghara-mcp"
+primary_region = "lhr"
+
+[build]
+dockerfile = "Dockerfile"
+
+[env]
+PORT = "8000"
+NODE_ENV = "production"
+
+[http_service]
+internal_port = 8000
+force_https = true
+auto_stop_machines = true
+auto_start_machines = true
+min_machines_running = 0
+processes = ["app"]
+
+[http_service.checks]
+[http_service.checks.health]
+interval = "30s"
+timeout = "5s"
+grace_period = "10s"
+method = "GET"
+path = "/health"
+
+# Secrets (set with `fly secrets set`):
+#   AGHARA_BASE_URL=https://aghara.fly.dev   (prod) or http://localhost:5173 (dev)
+#   AGHARA_API_TOKEN=<API token created in the Aghara UI: Settings → API tokens>

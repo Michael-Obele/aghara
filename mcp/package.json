@@ -1,0 +1,31 @@
+{
+	"name": "aghara-mcp",
+	"version": "0.1.0",
+	"description": "TMCP server that remote-controls Aghara (social scheduler) over its REST API",
+	"type": "module",
+	"main": "src/index.ts",
+	"scripts": {
+		"start": "bun run src/index.ts",
+		"dev": "bun run --watch src/index.ts",
+		"check": "tsc --noEmit"
+	},
+	"keywords": [
+		"tmcp",
+		"mcp",
+		"server",
+		"aghara"
+	],
+	"dependencies": {
+		"tmcp": "^1.20.0",
+		"@tmcp/adapter-valibot": "^0.1.6",
+		"valibot": "^1.4.2",
+		"@tmcp/transport-stdio": "^0.5.0",
+		"@tmcp/transport-http": "^0.9.0",
+		"srvx": "^1.0.3"
+	},
+	"devDependencies": {
+		"@types/bun": "^1.4.1",
+		"@types/node": "^26.4.1",
+		"typescript": "^7.0.2"
+	}
+}

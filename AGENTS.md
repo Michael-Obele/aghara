@@ -11,7 +11,7 @@
 - **Database**: Drizzle ORM + `@neondatabase/serverless` (HTTP driver). Postgres (Neon hosted, any Postgres self-host). Singleton `db` in `src/lib/server/db/index.ts`. Tables in `src/lib/server/db/schema.ts` + Better Auth tables in `auth.schema.ts`.
 - **Validation**: Valibot (`v.*` namespace). Shared schemas in `src/lib/schemas/` used by both remote functions and REST.
 - **Authentication**: Better Auth (`better-auth/minimal` + `drizzleAdapter` + `sveltekitCookies` in `src/lib/server/auth.ts`). Email/password + optional GitHub OAuth. Session cookie for web (`event.locals.session/user` in `src/hooks.server.ts`); SHA-256 hashed Bearer `api_tokens` for REST/MCP.
-- **Scheduler**: `node-cron` every minute, in-process. `startScheduler()` in `src/lib/server/scheduler.ts`, started once from `src/hooks.server.ts` guarded by `globalThis.__aghara_scheduler` + `building` check.
+- **Scheduler**: `Bun.cron` every minute, in-process (native Bun API, no dependency). `startScheduler()` in `src/lib/server/scheduler.ts`, started once from `src/hooks.server.ts` guarded by `globalThis.__aghara_scheduler` + `building` check. No-overlap is built in; after a sleep the next tick's `publishDue()` catches up all due rows.
 - **Providers**: `src/lib/server/providers/<channel>.ts` each exporting `publish(input, credentials)`. Channels: `bluesky` (`@atproto/api` `BskyAgent`, core), `linkedin` / `threads` / `mastodon` / `telegram` / `discord` (optional). Credentials encrypted JSON (AES-GCM, `APP_ENCRYPTION_KEY` in `src/lib/server/services/crypto.ts`).
 - **Billing**: Lemon Squeezy (plain fetch, no SDK) + webhook HMAC in `src/routes/api/webhooks/lemonsqueezy/+server.ts`. Plans: free / creator / pro. `SELF_HOST=true` disables billing (unlimited).
 - **Icons**: Use `@lucide/svelte` (NEVER `lucide-svelte`). `import { IconName } from '@lucide/svelte'`. Sparingly, only for status/direction/action affordance. No decorative filler, no `Sparkles`/AI-style icons on buttons/headings/dropdowns. Prefer text-only dropdown options/tips/captions.
@@ -21,7 +21,7 @@
 
 ```
 PAGES (src/routes) --> RF (src/lib/remote/*.remote.ts) --> SVC (src/lib/server/services/*)
-MCP (mcp/, stdio) --> REST (src/routes/api/v1/*) -------> SVC
+MCP (mcp/, standalone TMCP on Fly.io) --> REST (src/routes/api/v1/*) --> SVC
 CRON (hooks.server.ts -> scheduler.ts) -----------------> SVC
 SVC --> DB (Drizzle) + PROV (providers/*)
 ```
@@ -94,8 +94,10 @@ Every page/route must pass WCAG AAA before done: contrast, legible size/weight, 
 - `src/lib/server/providers/`: one file per channel, `publish(input, credentials)`.
 - `src/lib/server/`: `auth.ts` (Better Auth), `api.ts` (Bearer helper), `session.ts` (`requireUserId`), `scheduler.ts`.
 - `src/lib/remote/`: pages-only data layer. Never imported by services or REST.
+- `mcp/`: standalone TMCP server (TypeScript, `tmcp` SDK + Valibot adapter). 3 tools (`aghara_health`, `aghara_accounts`, `aghara_posts`) forwarding to REST. Own `package.json`/`fly.toml`; deploys to Fly.io with spin-down on inactivity. Env: `AGHARA_BASE_URL` (swap dev/prod), `AGHARA_API_TOKEN` (from the UI tokens page).
 - `src/lib/components/ui/`: CLI-generated only. `src/lib/components/`: shared in `blocks/`, route-specific in route-named folders.
 - `src/routes/api/v1/`: `health` (public GET), `accounts`, `posts`, `scheduled/[id]`, `tokens` (JSON only).
+- Admin: `bun run seed:admin` creates/updates `admin@svelte-apps.me` (env `ADMIN_EMAIL`/`ADMIN_PASSWORD`) with `role=admin` + a pro-for-life subscription. Admin always gets the pro plan (`isAdmin` in `src/lib/server/services/billing.ts`) and bypasses plan limits.
 - `src/routes/api/webhooks/lemonsqueezy/+server.ts`: raw body + `X-Signature` HMAC.
 - `src/routes/api/auth/[...all]/+server.ts`: Better Auth mount.
 - `src/hooks.server.ts`: Better Auth handler + single scheduler start.

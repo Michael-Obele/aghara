@@ -1,0 +1,10 @@
+{
+	// VS Code MCP: connect to the hosted Aghara MCP server (Streamable HTTP).
+	// The URL is a placeholder until `mcp/` is deployed to Fly.io (`cd mcp && fly deploy`).
+	"servers": {
+		// "aghara": {
+		// 	"type": "http",
+		// 	"url": "https://aghara-mcp.fly.dev/mcp"
+		// }
+	}
+}
