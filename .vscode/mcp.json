@@ -1,10 +1,36 @@
 {
-	// VS Code MCP: connect to the hosted Aghara MCP server (Streamable HTTP).
-	// The URL is a placeholder until `mcp/` is deployed to Fly.io (`cd mcp && fly deploy`).
+	// VS Code MCP — local testing for Aghara (TMCP, Bun)
+	// Two transports, pick one (or keep both and toggle in VS Code):
+	//  • aghara-stdio — VS Code launches `bun run src/index.ts` (STDIO). Best for local dev, no separate terminal needed.
+	//  • aghara-http  — connects to already-running server at http://localhost:8000/mcp (run `bun run dev` in mcp/ first).
+	// Docs: https://code.visualstudio.com/docs/copilot/chat/mcp-servers
 	"servers": {
-		// "aghara": {
-		// 	"type": "http",
-		// 	"url": "https://aghara-mcp.fly.dev/mcp"
-		// }
-	}
+		"aghara-stdio": {
+			"type": "stdio",
+			"command": "bun",
+			"args": ["run", "src/index.ts"],
+			"cwd": "${workspaceFolder}/mcp",
+			"env": {
+				"AGHARA_BASE_URL": "http://localhost:5173",
+				"AGHARA_API_TOKEN": "${input:aghara-token}",
+				"PORT": "8000"
+			},
+			"envFile": "${workspaceFolder}/mcp/.env"
+		},
+		"aghara-http": {
+			"type": "http",
+			"url": "http://localhost:8000/mcp",
+			"headers": {
+				"Authorization": "Bearer ${input:aghara-token}"
+			}
+		}
+	},
+	"inputs": [
+		{
+			"type": "promptString",
+			"id": "aghara-token",
+			"description": "Aghara API token (Settings → API tokens) — leave empty for health-only testing",
+			"password": true
+		}
+	]
 }
