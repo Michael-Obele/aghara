@@ -23,7 +23,6 @@
 		Server,
 		Code
 	} from '@lucide/svelte/icons';
-	import ThemeToggle from '$lib/components/blocks/ThemeToggle.svelte';
 	import ComposeDemo from '$lib/components/blocks/ComposeDemo.svelte';
 	import Reveal from '$lib/components/blocks/Reveal.svelte';
 	import LiveTicker from '$lib/components/blocks/LiveTicker.svelte';
@@ -122,32 +121,6 @@
 		content="Post once, show up everywhere. Aghara is the Bluesky-first scheduler for busy creators — one draft, six networks, posted on time. Try the live demo, no account needed."
 	/>
 </svelte:head>
-
-<!-- Nav -->
-<header class="sticky top-0 z-40 border-b bg-background/85 backdrop-blur">
-	<div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-		<a href="/" class="flex items-center gap-2 font-semibold tracking-tight">
-			<span
-				class="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"
-			>
-				<Megaphone class="size-4" />
-			</span>
-			Aghara
-		</a>
-		<nav class="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
-			<a href="/#how" class="transition hover:text-foreground">How it works</a>
-			<a href="/#features" class="transition hover:text-foreground">Why Aghara</a>
-			<a href="/#compare" class="transition hover:text-foreground">Compare</a>
-			<a href="/#pricing" class="transition hover:text-foreground">Pricing</a>
-			<a href="/#faq" class="transition hover:text-foreground">FAQ</a>
-		</nav>
-		<div class="flex items-center gap-3">
-			<ThemeToggle />
-			<a href="/login"><Button variant="ghost">Sign in</Button></a>
-			<a href="/register"><Button>Post once, show up everywhere</Button></a>
-		</div>
-	</div>
-</header>
 
 <!-- Hero — reciprocity + IKEA effect: try the real flow before signing up -->
 <section class="relative overflow-hidden border-b">
@@ -780,26 +753,6 @@
 		</Reveal>
 	</div>
 </section>
-
-<!-- Footer -->
-<footer class="border-t">
-	<div
-		class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-10 text-sm text-muted-foreground sm:flex-row"
-	>
-		<div class="flex items-center gap-2">
-			<span
-				class="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground"
-			>
-				<Megaphone class="size-3.5" />
-			</span>
-			Aghara — the town crier for the internet
-		</div>
-		<div class="flex gap-6">
-			<a href="/login" class="transition hover:text-foreground">Sign in</a>
-			<a href="/register" class="transition hover:text-foreground">Start posting everywhere</a>
-		</div>
-	</div>
-</footer>
 
 <style>
 	/* Entrance motion: staggered rise, one orchestrated moment (respects reduced motion) */

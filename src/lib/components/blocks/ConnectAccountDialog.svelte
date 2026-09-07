@@ -12,6 +12,7 @@
 		DialogHeader,
 		DialogTitle
 	} from '$lib/components/ui/dialog/index.js';
+	import PasswordInput from '$lib/components/blocks/PasswordInput.svelte';
 	import BlueskyIcon from '$lib/components/brand/BlueskyIcon.svelte';
 	import DiscordIcon from '$lib/components/brand/DiscordIcon.svelte';
 	import LinkedinIcon from '$lib/components/brand/LinkedinIcon.svelte';
@@ -116,10 +117,9 @@
 				</div>
 				<div class="space-y-2">
 					<Label for="appPassword">App password</Label>
-					<Input
+					<PasswordInput
 						id="appPassword"
 						name="appPassword"
-						type="password"
 						placeholder="xxxx-xxxx-xxxx-xxxx"
 						autocomplete="off"
 						required
@@ -128,10 +128,9 @@
 			{:else if channel === 'telegram'}
 				<div class="space-y-2">
 					<Label for="botToken">Bot token</Label>
-					<Input
+					<PasswordInput
 						id="botToken"
 						name="botToken"
-						type="password"
 						placeholder="123456:ABC-DEF…"
 						autocomplete="off"
 						required
@@ -174,22 +173,9 @@
 				</div>
 				<div class="space-y-2">
 					<Label for="accessToken">Access token</Label>
-					<Input
+					<PasswordInput
 						id="accessToken"
 						name="accessToken"
-						type="password"
-						placeholder="Your token"
-						autocomplete="off"
-						required
-					/>
-				</div>
-			{:else if channel === 'linkedin'}
-				<div class="space-y-2">
-					<Label for="accessToken">Access token</Label>
-					<Input
-						id="accessToken"
-						name="accessToken"
-						type="password"
 						placeholder="Your token"
 						autocomplete="off"
 						required
@@ -209,10 +195,9 @@
 				</div>
 				<div class="space-y-2">
 					<Label for="accessToken">Access token</Label>
-					<Input
+					<PasswordInput
 						id="accessToken"
 						name="accessToken"
-						type="password"
 						placeholder="Your token"
 						autocomplete="off"
 						required

@@ -11,6 +11,7 @@
 		CardHeader,
 		CardTitle
 	} from '$lib/components/ui/card/index.js';
+	import PasswordInput from '$lib/components/blocks/PasswordInput.svelte';
 	import { Megaphone, Check, ArrowRight } from '@lucide/svelte/icons';
 </script>
 
@@ -105,8 +106,8 @@
 						</div>
 						<div class="space-y-2">
 							<Label for="password">Password</Label>
-							<Input
-								{...signUpForm.fields.password.as('password')}
+							<PasswordInput
+								field={signUpForm.fields.password}
 								id="password"
 								placeholder="At least 8 characters"
 								autocomplete="new-password"

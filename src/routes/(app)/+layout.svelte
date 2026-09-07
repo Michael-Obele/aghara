@@ -11,8 +11,6 @@
 		SheetTitle,
 		SheetTrigger
 	} from '$lib/components/ui/sheet/index.js';
-	import { Toaster } from '$lib/components/ui/sonner/index.js';
-	import ThemeToggle from '$lib/components/blocks/ThemeToggle.svelte';
 	import {
 		Megaphone,
 		LayoutDashboard,
@@ -56,38 +54,37 @@
 	});
 </script>
 
-<Toaster />
-
-<div class="flex min-h-svh">
-	<!-- Desktop sidebar -->
+<div class="flex min-h-0 flex-1">
+	<!-- Desktop sidebar — app nav only (global Navbar/Footer live in +layout.svelte) -->
 	<aside class="hidden w-60 shrink-0 flex-col border-r bg-sidebar md:flex">
-		<a href="/" class="flex h-16 items-center gap-2 border-b px-5">
-			<span
-				class="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"
-			>
-				<Megaphone class="size-4" />
-			</span>
-			<span class="font-semibold tracking-tight">Aghara</span>
-		</a>
-		<nav class="flex-1 space-y-1 p-3">
+		<div
+			class="flex h-12 items-center gap-2 border-b px-5 text-xs font-medium tracking-wide text-muted-foreground uppercase"
+		>
+			App
+		</div>
+		<nav class="flex-1 space-y-1 p-3" aria-label="App navigation">
 			{#each nav as item}
 				<a
 					href={item.href}
+					aria-current={isActive(item.href) ? 'page' : undefined}
 					class={isActive(item.href)
 						? 'flex items-center gap-3 rounded-md bg-sidebar-accent px-3 py-2 text-sm font-medium text-sidebar-accent-foreground'
 						: 'flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'}
 				>
-					<item.icon class="size-4 shrink-0" />
+					<item.icon class="size-4 shrink-0" aria-hidden="true" />
 					{item.label}
 				</a>
 			{/each}
 		</nav>
 		<div class="border-t p-4">
-			<div class="flex items-center justify-between">
-				<span class="text-sm font-medium">{data.user.name}</span>
+			<div class="flex items-center justify-between gap-2">
+				<span class="truncate text-sm font-medium">{data.user.name}</span>
 				{#if planLabel}
-					<Badge variant="secondary" class="gap-1">
-						{#if plan.current?.plan === 'self-host'}<Infinity class="size-3" />{/if}
+					<Badge variant="secondary" class="shrink-0 gap-1">
+						{#if plan.current?.plan === 'self-host'}<Infinity
+								class="size-3"
+								aria-hidden="true"
+							/>{/if}
 						{planLabel}
 					</Badge>
 				{/if}
@@ -97,68 +94,58 @@
 				class="mt-3 w-full justify-start gap-2 text-muted-foreground"
 				onclick={signOut}
 			>
-				<LogOut class="size-4" /> Sign out
+				<LogOut class="size-4" aria-hidden="true" /> Sign out
 			</Button>
-			<div class="mt-2 flex justify-end">
-				<ThemeToggle />
-			</div>
 		</div>
 	</aside>
 
-	<!-- Mobile top bar -->
+	<!-- Mobile app nav + content -->
 	<div class="flex min-w-0 flex-1 flex-col">
-		<header class="flex h-16 items-center justify-between border-b px-4 md:hidden">
-			<div class="flex items-center gap-2 font-semibold tracking-tight">
-				<span
-					class="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"
-				>
-					<Megaphone class="size-4" />
-				</span>
-				Aghara
-			</div>
-			<div class="flex items-center gap-2">
-				<ThemeToggle variant="outline" />
-				<Sheet>
-					<SheetTrigger>
-						<Button variant="outline" size="icon" aria-label="Open menu">
+		<div class="flex h-12 items-center justify-between border-b px-4 md:hidden">
+			<span class="text-xs font-medium tracking-wide text-muted-foreground uppercase">App</span>
+			<Sheet>
+				<SheetTrigger>
+					{#snippet child({ props })}
+						<Button {...props} variant="outline" size="icon" aria-label="Open app menu">
 							<Menu class="size-4" />
 						</Button>
-					</SheetTrigger>
-					<SheetContent side="left">
-						<SheetHeader>
-							<SheetTitle class="flex items-center gap-2">
-								<span
-									class="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground"
-								>
-									<Megaphone class="size-4" />
-								</span>
-								Aghara
-							</SheetTitle>
-						</SheetHeader>
-						<nav class="mt-4 space-y-1">
-							{#each nav as item}
-								<a
-									href={item.href}
-									class={isActive(item.href)
-										? 'flex items-center gap-3 rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground'
-										: 'flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent/60 hover:text-accent-foreground'}
-								>
-									<item.icon class="size-4 shrink-0" />
-									{item.label}
-								</a>
-							{/each}
-							<button
-								type="button"
-								class="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent/60 hover:text-accent-foreground"
-								onclick={signOut}
+					{/snippet}
+				</SheetTrigger>
+				<SheetContent side="left">
+					<SheetHeader>
+						<SheetTitle class="flex items-center gap-2">
+							<span
+								class="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground"
 							>
-								<LogOut class="size-4 shrink-0" /> Sign out
-							</button>
-						</nav>
-					</SheetContent>
-				</Sheet>
-			</div>
-		</header>
+								<Megaphone class="size-4" aria-hidden="true" />
+							</span>
+							Aghara
+						</SheetTitle>
+					</SheetHeader>
+					<nav class="mt-4 space-y-1" aria-label="App navigation">
+						{#each nav as item}
+							<a
+								href={item.href}
+								aria-current={isActive(item.href) ? 'page' : undefined}
+								class={isActive(item.href)
+									? 'flex items-center gap-3 rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground'
+									: 'flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent/60 hover:text-accent-foreground'}
+							>
+								<item.icon class="size-4 shrink-0" aria-hidden="true" />
+								{item.label}
+							</a>
+						{/each}
+						<button
+							type="button"
+							class="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent/60 hover:text-accent-foreground"
+							onclick={signOut}
+						>
+							<LogOut class="size-4 shrink-0" aria-hidden="true" /> Sign out
+						</button>
+					</nav>
+				</SheetContent>
+			</Sheet>
+		</div>
 
 		<main class="flex-1 px-4 py-8 md:px-8">
 			<div class="mx-auto max-w-5xl">{@render children()}</div>

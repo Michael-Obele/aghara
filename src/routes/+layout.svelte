@@ -5,6 +5,8 @@
 	import { ModeWatcher } from 'mode-watcher';
 	import { browser, dev } from '$app/environment';
 	import { Agentation, type AnnotationProps } from 'sv-agentation';
+	import Navbar from '$lib/components/blocks/Navbar.svelte';
+	import Footer from '$lib/components/blocks/Footer.svelte';
 
 	let playgroundAnnotationProps: AnnotationProps = {
 		toolbarPosition: 'bottom-left',
@@ -24,7 +26,13 @@
 <!-- Dark theme by default; users can switch (choice persists in localStorage). -->
 <ModeWatcher defaultMode="dark" />
 <Toaster />
-{@render children()}
+<div class="flex min-h-svh flex-col">
+	<Navbar />
+	<div class="flex-1">
+		{@render children()}
+	</div>
+	<Footer />
+</div>
 
 {#if browser && dev}
 	<Agentation {...playgroundAnnotationProps} />
