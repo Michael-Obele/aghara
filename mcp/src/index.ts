@@ -31,6 +31,9 @@ const port = Number(process.env.PORT ?? 8000);
 serve({
 	port,
 	hostname: '0.0.0.0',
+	// Bun kills idle SSE streams after 10s by default (MCP Streamable HTTP).
+	// srvx forwards `bun` → Bun.serve(). 0 = disabled
+	bun: { idleTimeout: 0 },
 	async fetch(request) {
 		const url = new URL(request.url);
 		if (url.pathname === '/health') {
