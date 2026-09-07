@@ -1,6 +1,6 @@
 // Bluesky provider — core channel. Threads via reply-chaining: the first post is
 // the root, every follow-up is a reply to the previous post (root = first, parent = previous).
-import { AppBskyEmbedImages, BskyAgent } from '@atproto/api';
+import { AppBskyEmbedImages, AtpAgent, RichText } from '@atproto/api';
 import { resolveSegments, splitText } from './types';
 import type { Platform } from './types';
 
@@ -27,7 +27,7 @@ export const bluesky: Platform = {
 	},
 	async verify(creds) {
 		const { handle, appPassword } = creds as unknown as BlueskyCreds;
-		const agent = new BskyAgent({ service: SERVICE });
+		const agent = new AtpAgent({ service: SERVICE });
 		try {
 			await agent.login({ identifier: handle, password: appPassword });
 		} catch (err) {
@@ -37,7 +37,7 @@ export const bluesky: Platform = {
 	},
 	async publish(input, creds) {
 		const { handle } = creds as unknown as BlueskyCreds;
-		const agent = new BskyAgent({ service: SERVICE });
+		const agent = new AtpAgent({ service: SERVICE });
 		await agent.login({
 			identifier: handle,
 			password: (creds as unknown as BlueskyCreds).appPassword
@@ -67,8 +67,11 @@ export const bluesky: Platform = {
 
 		for (let i = 0; i < segs.length; i++) {
 			const isFirst = i === 0;
+			const rt = new RichText({ text: segs[i] });
+			await rt.detectFacets(agent);
 			const res = await agent.post({
-				text: segs[i],
+				text: rt.text,
+				facets: rt.facets,
 				...(embed && isFirst ? { embed } : {}),
 				...(root && parent ? { reply: { root, parent } } : {})
 			});
