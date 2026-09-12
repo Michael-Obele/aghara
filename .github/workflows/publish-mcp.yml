@@ -27,8 +27,9 @@ jobs:
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
-      # Trusted publishing via OIDC — no NODE_AUTH_TOKEN needed.
-      # Fallback: set NPM_TOKEN repo secret and uncomment the env line.
-      - run: bun publish --access public
-      #  env:
-      #    NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # npm 11.1+ required for provenance attestations.
+      - run: npm install -g npm@latest
+      # Provenance via OIDC trusted publishing — no NODE_AUTH_TOKEN needed.
+      # Shows "Built and signed on GitHub Actions" on the npm package page.
+      # Fallback: set NPM_TOKEN repo secret and use `npm publish` with NODE_AUTH_TOKEN.
+      - run: npm publish --provenance --access public
