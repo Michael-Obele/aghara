@@ -106,8 +106,18 @@
 		Boolean(activePlatform && !canSplit && graphemes > activePlatform.maxLength)
 	);
 	const willSplit = $derived(
-		Boolean(activePlatform && canSplit && graphemes > activePlatform.maxLength)
+		Boolean(activePlatform && canSplit && !isThread && graphemes > activePlatform.maxLength)
 	);
+	// Thread mode: each part is expected to fit the per-post limit. Flag parts
+	// that overflow so the user starts a new part (publish auto-splits anyway).
+	const overParts = $derived(
+		!activePlatform
+			? []
+			: segments
+					.map((s, i) => (graphemeCount(s) > activePlatform.maxLength ? i : -1))
+					.filter((i) => i >= 0)
+	);
+	const hasOverPart = $derived(overParts.length > 0);
 
 	// Remote-function form wiring: `createPostForm.enhance(...)` registers this
 	// callback and returns the form instance to spread. Do NOT use `use:enhance`
@@ -237,7 +247,17 @@
 											rows={4}
 											placeholder={`Part ${i + 1} — up to ${activePlatform?.maxLength ?? ''} chars`}
 											class="resize-none"
+											aria-invalid={activePlatform && graphemeCount(seg) > activePlatform.maxLength
+												? true
+												: undefined}
 										/>
+										{#if activePlatform && graphemeCount(seg) > activePlatform.maxLength}
+											<p class="text-right text-xs text-muted-foreground">
+												{graphemeCount(seg)}/{activePlatform.maxLength} — over the per-post limit. Start
+												part {i + 2} below, or Aghara will auto-split this part on
+												{activePlatform.name}.
+											</p>
+										{/if}
 									</div>
 								{/each}
 								<Button
@@ -366,6 +386,13 @@
 							<p class="text-sm text-destructive">
 								{activePlatform?.name} allows {activePlatform?.maxLength} characters and can't split —
 								trim your post or use a thread-capable network.
+							</p>
+						{/if}
+						{#if isThread && hasOverPart}
+							<p class="text-sm text-muted-foreground">
+								{overParts.length === 1 ? 'One part is' : `${overParts.length} parts are`} over the
+								{activePlatform?.maxLength}-char per-post limit — split into a new part, or Aghara
+								will auto-split on {activePlatform?.name}.
 							</p>
 						{/if}
 						<Button

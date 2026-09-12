@@ -49,6 +49,7 @@
 				<div class="space-y-3">
 					<p class="font-medium">Developers</p>
 					<ul class="space-y-2 text-muted-foreground">
+						<li><a href="/docs/mcp" class="transition hover:text-foreground">MCP server</a></li>
 						<li><a href="/tokens" class="transition hover:text-foreground">API tokens</a></li>
 						<li>
 							<a href="/api/v1/health" class="transition hover:text-foreground">API health</a>

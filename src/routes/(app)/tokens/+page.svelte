@@ -79,7 +79,8 @@
 	<div>
 		<h1 class="text-2xl font-semibold tracking-tight">API tokens</h1>
 		<p class="mt-1 text-muted-foreground">
-			Bearer tokens for machines and agents — each shown exactly once.
+			Bearer tokens for machines and agents — each shown exactly once. Use them with the
+			<a href="/docs/mcp" class="underline">MCP server</a> or the REST API directly.
 		</p>
 	</div>
 

@@ -62,7 +62,8 @@
 		{ href: '/#features', label: 'Why Aghara' },
 		{ href: '/#compare', label: 'Compare' },
 		{ href: '/#pricing', label: 'Pricing' },
-		{ href: '/#faq', label: 'FAQ' }
+		{ href: '/#faq', label: 'FAQ' },
+		{ href: '/docs/mcp', label: 'MCP' }
 	];
 
 	const appNav = [
