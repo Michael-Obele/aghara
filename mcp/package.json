@@ -4,10 +4,20 @@
 	"description": "TMCP server that remote-controls Aghara (social scheduler) over its REST API",
 	"type": "module",
 	"main": "src/index.ts",
+	"bin": {
+		"aghara-mcp": "src/index.ts"
+	},
+	"files": [
+		"src",
+		"README.md"
+	],
 	"scripts": {
-		"start": "bun run src/index.ts",
-		"dev": "bun run --watch src/index.ts",
-		"check": "tsc --noEmit"
+		"start": "bun run src/index.ts --http",
+		"dev": "bun run --watch src/index.ts --http",
+		"check": "tsc --noEmit",
+		"deploy": "wrangler deploy",
+		"dev:worker": "wrangler dev",
+		"prepublishOnly": "bun run check"
 	},
 	"keywords": [
 		"tmcp",
@@ -26,6 +36,7 @@
 	"devDependencies": {
 		"@types/bun": "^1.4.1",
 		"@types/node": "^26.4.1",
-		"typescript": "^7.0.2"
+		"typescript": "^7.0.2",
+		"wrangler": "^4.0.0"
 	}
 }
