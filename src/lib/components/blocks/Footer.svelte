@@ -18,7 +18,7 @@
 					Aghara
 				</a>
 				<p class="max-w-sm text-sm text-muted-foreground">
-					The town crier for the internet — write once, Aghara announces on schedule. Bluesky-first,
+					The town crier for the internet. Write once, Aghara announces on schedule. Bluesky first,
 					six networks, posted on time.
 				</p>
 				<p class="text-xs text-muted-foreground">
@@ -49,6 +49,7 @@
 				<div class="space-y-3">
 					<p class="font-medium">Developers</p>
 					<ul class="space-y-2 text-muted-foreground">
+						<li><a href="/docs/api" class="transition hover:text-foreground">API reference</a></li>
 						<li><a href="/docs/mcp" class="transition hover:text-foreground">MCP server</a></li>
 						<li><a href="/tokens" class="transition hover:text-foreground">API tokens</a></li>
 						<li>
@@ -71,8 +72,8 @@
 			class="mt-8 flex flex-col gap-3 border-t pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between"
 		>
 			<p>
-				Self-host with <code class="rounded bg-muted px-1 py-0.5">SELF_HOST=true</code> — same app, your
-				server.
+				Self-host with <code class="rounded bg-muted px-1 py-0.5">SELF_HOST=true</code>. Same app,
+				your server.
 			</p>
 			<p>Built with SvelteKit 5 · Tailwind v4 · Better Auth</p>
 		</div>

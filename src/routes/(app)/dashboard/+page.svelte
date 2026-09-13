@@ -103,8 +103,12 @@
 						{plan.current.plan === 'creator' ? 'Creator' : 'Pro'} plan
 					</p>
 					<p class="text-sm text-muted-foreground">
-						{queued + posted + failed} of {plan.current.limits.scheduledPerMonth} scheduled posts used
-						this month
+						{#if Number.isFinite(plan.current.limits.scheduledPerMonth)}
+							{queued + posted + failed} of {plan.current.limits.scheduledPerMonth} scheduled posts used
+							this month
+						{:else}
+							{queued + posted + failed} scheduled posts this month · unlimited
+						{/if}
 					</p>
 				</div>
 			</CardContent>

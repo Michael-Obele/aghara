@@ -138,10 +138,10 @@
 			>
 				<Check class="size-6" />
 			</span>
-			<h3 class="mt-4 font-semibold">Nice — that is exactly how it works.</h3>
+			<h3 class="mt-4 font-semibold">Nice. That is exactly how it works.</h3>
 			<p class="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
 				One post, out to {networkLabel} at {formattedTime}. Create your account, pick a plan, and
-				you can do this for real — same box, same feel.
+				you can do this for real. Same box, same feel.
 			</p>
 			<div class="mt-6 flex flex-wrap items-center justify-center gap-3">
 				<a href="/register">
@@ -206,7 +206,7 @@
 			</Button>
 			{#if overLimit}
 				<p class="text-center text-xs text-destructive">
-					Bluesky allows 300 characters — trim your post to continue.
+					Bluesky allows 300 characters. Trim your post to continue.
 				</p>
 			{/if}
 		</div>

@@ -21,7 +21,7 @@
 			yearlySubNote: '₦64,000/yr',
 			features: [
 				'5 channel accounts',
-				'500 scheduled posts / month',
+				'5,000 scheduled posts / month',
 				'API tokens for machines & agents'
 			],
 			cta: 'Choose Creator',
@@ -36,7 +36,7 @@
 			yearlySubNote: '₦96,000/yr',
 			features: [
 				'Unlimited channel accounts',
-				'2,000 scheduled posts / month',
+				'Unlimited scheduled posts',
 				'API tokens for machines & agents'
 			],
 			cta: 'Choose Pro'
