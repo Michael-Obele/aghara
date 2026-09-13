@@ -16,6 +16,9 @@
 			id: 'creator',
 			name: 'Creator',
 			price: '$5',
+			subPrice: '₦8,000',
+			yearlyNote: '$50/yr',
+			yearlySubNote: '₦64,000/yr',
 			features: [
 				'5 channel accounts',
 				'500 scheduled posts / month',
@@ -28,6 +31,9 @@
 			id: 'pro',
 			name: 'Pro',
 			price: '$8',
+			subPrice: '₦12,000',
+			yearlyNote: '$80/yr',
+			yearlySubNote: '₦96,000/yr',
 			features: [
 				'Unlimited channel accounts',
 				'2,000 scheduled posts / month',
@@ -66,7 +72,7 @@
 		<p class="mt-1 text-muted-foreground">
 			{currentPlan === null
 				? 'A paid plan is required to use Aghara — pick one to get started.'
-				: 'Payments handled by Lemon Squeezy — cancel anytime, no lock-in.'}
+				: 'Payments handled securely by Paystack — cancel anytime, no lock-in.'}
 		</p>
 	</div>
 
@@ -118,6 +124,11 @@
 					<h3 class="font-semibold">{tier.name}</h3>
 					<p class="mt-2 text-4xl font-semibold tracking-tight">
 						{tier.price}<span class="text-base font-normal text-muted-foreground">/mo</span>
+						<span class="ml-2 text-sm font-normal text-muted-foreground">({tier.subPrice})</span>
+					</p>
+					<p class="text-sm text-muted-foreground">
+						{tier.yearlyNote} yearly
+						<span class="text-muted-foreground/70">({tier.yearlySubNote})</span>
 					</p>
 					<ul class="mt-6 space-y-2.5 text-sm">
 						{#each tier.features as feature (feature)}
