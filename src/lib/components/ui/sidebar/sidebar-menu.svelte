@@ -7,14 +7,15 @@
 		class: className,
 		children,
 		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+	}: WithElementRef<HTMLAttributes<HTMLUListElement>, HTMLUListElement> = $props();
 </script>
 
-<div
+<ul
 	bind:this={ref}
-	data-slot="sheet-footer"
-	class={cn("gap-2 p-4 mt-auto flex flex-col", className)}
+	data-slot="sidebar-menu"
+	data-sidebar="menu"
+	class={cn("gap-1 flex w-full min-w-0 flex-col", className)}
 	{...restProps}
 >
 	{@render children?.()}
-</div>
+</ul>

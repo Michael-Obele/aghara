@@ -12,8 +12,9 @@
 
 <div
 	bind:this={ref}
-	data-slot="sheet-footer"
-	class={cn("gap-2 p-4 mt-auto flex flex-col", className)}
+	data-slot="sidebar-group-content"
+	data-sidebar="group-content"
+	class={cn("text-sm w-full", className)}
 	{...restProps}
 >
 	{@render children?.()}
