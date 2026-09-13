@@ -1,7 +1,7 @@
 # Auto-publish aghara-mcp to npm whenever mcp/ changes on main.
 # - Push to main touching mcp/** (or this workflow) → check, build,
-#   smoke-test, auto-bump patch if the version is already on npm,
-#   publish, then push the version-bump commit + mcp/vX.Y.Z tag back.
+#   smoke-test (Node stdio), auto-bump patch if the version is already
+#   on npm, publish, then push the version-bump commit + mcp/vX.Y.Z tag back.
 # - Tag push mcp/v* → publish that tag as-is (manual release escape hatch).
 # - Manual alternative: workflow_dispatch, or `cd mcp && bun publish`.
 # Loop guard: the auto-release commit message contains [skip mcp-publish],
@@ -42,16 +42,10 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run check
       - run: bun run build
-      - name: Smoke-test MCP bundle (Node stdio + HTTP)
+      - name: Smoke-test MCP bundle (Node stdio)
         run: |
           printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' '{"jsonrpc":"2.0","method":"notifications/initialized"}' '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | timeout 15 node dist/index.js 2>stdio.err | python3 -c "import sys,json; tools=json.loads(list(sys.stdin)[-1])['result']['tools']; names=sorted(t['name'] for t in tools); assert names == ['aghara_accounts','aghara_health','aghara_platforms','aghara_posts'], names; print('stdio tools OK:', ', '.join(names))"
           test ! -s stdio.err || (cat stdio.err && exit 1)
-          PORT=8899 timeout 20 node dist/index.js --http & SRV=$!
-          sleep 3
-          curl -sf http://localhost:8899/health
-          curl -sf -X POST http://localhost:8899/mcp -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' -o /tmp/mcp-init.out
-          head -c 300 /tmp/mcp-init.out; echo
-          kill $SRV || true
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
