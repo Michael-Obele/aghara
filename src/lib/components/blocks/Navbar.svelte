@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 	import { currentUserQuery, signOutCommand, myPlanQuery } from '$lib/remote';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Avatar from '$lib/components/ui/avatar/index.js';
@@ -18,6 +19,7 @@
 		KeyRound,
 		User,
 		Infinity,
+		LoaderCircle,
 		ChevronDown,
 		ArrowRight
 	} from '@lucide/svelte/icons';
@@ -46,13 +48,24 @@
 		return plan.plan.charAt(0).toUpperCase() + plan.plan.slice(1);
 	});
 
+	let signingOut = $state(false);
+
 	async function handleSignOut() {
-		await signOutCommand();
-		mobileOpen = false;
-		goto('/');
-		// refresh queries so navbar updates immediately
-		userQuery.refresh();
-		planQuery.refresh();
+		if (signingOut) return;
+		signingOut = true;
+		const toastId = toast.loading('Signing out…');
+		try {
+			await signOutCommand();
+			toast.success('Signed out.', { id: toastId });
+			mobileOpen = false;
+			goto('/');
+			userQuery.refresh();
+			planQuery.refresh();
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : 'Sign-out failed.', { id: toastId });
+		} finally {
+			signingOut = false;
+		}
 	}
 
 	function closeMobile() {
@@ -135,6 +148,54 @@
 				>
 					Accounts
 				</a>
+				<!-- Logged-in users keep marketing pages via Explore (same links as logged-out) -->
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						{#snippet child({ props })}
+							<button
+								{...props}
+								class="flex items-center gap-1 rounded-md px-3 py-2 text-muted-foreground transition hover:bg-accent hover:text-foreground"
+							>
+								Explore
+								<ChevronDown class="size-3.5 opacity-60" aria-hidden="true" />
+							</button>
+						{/snippet}
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="start" class="w-64">
+						<DropdownMenu.Label>Product</DropdownMenu.Label>
+						<DropdownMenu.Group>
+							{#each productLinks as link (link.href)}
+								<DropdownMenu.Item
+									onclick={() => goto(link.href)}
+									class="flex flex-col items-start gap-0.5 py-2"
+								>
+									<span class="font-medium">{link.label}</span>
+									<span class="text-xs text-muted-foreground">{link.desc}</span>
+								</DropdownMenu.Item>
+							{/each}
+							<DropdownMenu.Item
+								onclick={() => goto('/#pricing')}
+								class="flex flex-col items-start gap-0.5 py-2"
+							>
+								<span class="font-medium">Pricing</span>
+								<span class="text-xs text-muted-foreground">Simple flat pricing</span>
+							</DropdownMenu.Item>
+						</DropdownMenu.Group>
+						<DropdownMenu.Separator />
+						<DropdownMenu.Label>Resources</DropdownMenu.Label>
+						<DropdownMenu.Group>
+							{#each resourceLinks as link (link.href)}
+								<DropdownMenu.Item
+									onclick={() => goto(link.href)}
+									class="flex flex-col items-start gap-0.5 py-2"
+								>
+									<span class="font-medium">{link.label}</span>
+									<span class="text-xs text-muted-foreground">{link.desc}</span>
+								</DropdownMenu.Item>
+							{/each}
+						</DropdownMenu.Group>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
 			{:else}
 				<!-- Grouped marketing nav: Product + Pricing + Resources (was 6 flat links) -->
 				<DropdownMenu.Root>
@@ -257,9 +318,16 @@
 								</DropdownMenu.Item>
 							</DropdownMenu.Group>
 							<DropdownMenu.Separator />
-							<DropdownMenu.Item variant="destructive" onclick={handleSignOut}>
-								<LogOut class="size-4" />
-								Sign out
+							<DropdownMenu.Item
+								variant="destructive"
+								onclick={handleSignOut}
+								disabled={signingOut}
+							>
+								{#if signingOut}
+									<LoaderCircle class="size-4 animate-spin" /> Signing out…
+								{:else}
+									<LogOut class="size-4" /> Sign out
+								{/if}
 							</DropdownMenu.Item>
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
@@ -346,9 +414,60 @@
 							</nav>
 
 							<Separator />
+							<nav class="space-y-4" aria-label="Explore">
+								<div>
+									<p
+										class="px-3 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase"
+									>
+										Product
+									</p>
+									{#each productLinks as item (item.href)}
+										<a
+											href={item.href}
+											onclick={closeMobile}
+											class="flex items-center rounded-md px-3 py-2.5 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+										>
+											{item.label}
+										</a>
+									{/each}
+									<a
+										href="/#pricing"
+										onclick={closeMobile}
+										class="flex items-center rounded-md px-3 py-2.5 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+									>
+										Pricing
+									</a>
+								</div>
+								<div>
+									<p
+										class="px-3 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase"
+									>
+										Resources
+									</p>
+									{#each resourceLinks as item (item.href)}
+										<a
+											href={item.href}
+											onclick={closeMobile}
+											class="flex items-center rounded-md px-3 py-2.5 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+										>
+											{item.label}
+										</a>
+									{/each}
+								</div>
+							</nav>
 
-							<Button variant="ghost" class="justify-start gap-2" onclick={handleSignOut}>
-								<LogOut class="size-4" /> Sign out
+							<Separator />
+							<Button
+								variant="ghost"
+								class="justify-start gap-2"
+								onclick={handleSignOut}
+								disabled={signingOut}
+							>
+								{#if signingOut}
+									<LoaderCircle class="size-4 animate-spin" /> Signing out…
+								{:else}
+									<LogOut class="size-4" /> Sign out
+								{/if}
 							</Button>
 						{:else}
 							<nav class="space-y-4" aria-label="Marketing">

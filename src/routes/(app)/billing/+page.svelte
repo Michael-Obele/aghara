@@ -4,7 +4,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Card, CardContent } from '$lib/components/ui/card/index.js';
-	import { Check, Infinity, ArrowRight } from '@lucide/svelte/icons';
+	import { Check, Infinity, ArrowRight, LoaderCircle } from '@lucide/svelte/icons';
 
 	const plan = myPlanQuery();
 	const selfHost = isSelfHostQuery();
@@ -47,11 +47,13 @@
 
 	async function upgrade(variant: 'creator' | 'pro') {
 		busy = variant;
+		const toastId = toast.loading('Opening checkout…');
 		try {
 			const { url } = await startCheckoutCommand({ variant });
+			toast.success('Redirecting to checkout…', { id: toastId });
 			window.location.href = url;
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Could not start checkout');
+			toast.error(err instanceof Error ? err.message : 'Could not start checkout', { id: toastId });
 			busy = null;
 		}
 	}
@@ -143,12 +145,16 @@
 							<Button class="w-full" disabled>Current plan</Button>
 						{:else}
 							<Button
-								class="w-full"
+								class="w-full gap-2"
 								variant={tier.popular ? 'default' : 'outline'}
 								disabled={busy === tier.id}
 								onclick={() => upgrade(tier.id as 'creator' | 'pro')}
 							>
-								{tier.cta}
+								{#if busy === tier.id}
+									<LoaderCircle class="size-4 animate-spin" /> Opening checkout…
+								{:else}
+									{tier.cta}
+								{/if}
 							</Button>
 						{/if}
 					</div>

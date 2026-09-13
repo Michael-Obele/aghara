@@ -69,22 +69,30 @@
 	// Honest comparison — verified Sept 2026 from public pricing pages, annual billing.
 	// Buffer: $5/mo per channel (Essentials, 1 channel). Typefully: ~$12.50/mo per social set (Creator, annual).
 	// Fedica Publish: $10/mo (100 queued). Fedica Grow: $19/mo annual ($29 monthly, 2,000 queued).
-	// Hootsuite Standard: $99/user/mo. Aghara Creator: $4/mo flat, 5 accounts + 500 posts/mo.
+	// Hootsuite Standard: $99/user/mo. Aghara Creator: $4/mo flat, 5 accounts + 500 posts/mo. Pro: $6/mo flat, unlimited + 2,000/mo.
 	const compare = [
 		{
 			name: 'Aghara Creator',
 			price: '$4/mo',
 			note: 'annual · flat',
 			accounts: '5 accounts included',
-			posts: '500 posts / month',
+			posts: '500 / month flat — all 5 included',
+			highlight: true
+		},
+		{
+			name: 'Aghara Pro',
+			price: '$6/mo',
+			note: 'annual · flat',
+			accounts: 'unlimited accounts',
+			posts: '2,000 / month flat — no per-channel math',
 			highlight: true
 		},
 		{
 			name: 'Buffer Essentials',
 			price: '$5/mo',
-			note: 'annual · per channel',
-			accounts: '1 channel, then +$5 each',
-			posts: 'unlimited per channel',
+			note: 'annual · +$5 per extra channel',
+			accounts: '1 included — 5 channels = $25/mo',
+			posts: 'unlimited on 1 channel only',
 			highlight: false
 		},
 		{
@@ -552,8 +560,8 @@
 				Buffer Essentials is $5/mo per channel annual — 6 channels ≈ $30/mo. Typefully Creator is
 				~$12.50/mo per social set annual — 6 sets ≈ $75/mo. Fedica Publish is $10/mo annual (100
 				queued) and Grow is $19/mo annual. Hootsuite Standard is $99/user/mo annual. Aghara Creator
-				is $4/mo flat annual — 5 accounts, 500 posts. Prices move; check their pages before you
-				decide.
+				is $4/mo flat annual — 5 accounts, 500 posts; Pro is $6/mo flat — unlimited accounts, 2,000
+				posts. Prices move; check their pages before you decide.
 			</p>
 		</Reveal>
 	</div>

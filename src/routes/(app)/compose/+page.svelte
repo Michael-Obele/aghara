@@ -23,7 +23,8 @@
 		ArrowRight,
 		Megaphone,
 		FileText,
-		ListTree
+		ListTree,
+		LoaderCircle
 	} from '@lucide/svelte/icons';
 
 	const accounts = listAccountsQuery();
@@ -124,20 +125,28 @@
 	// from `$app/forms` — that posts to the page itself (405). Body, targets and
 	// media are carried by hidden inputs inside the form (bound to state below).
 	async function onSubmit(form: { submit: () => Promise<boolean> }) {
+		const toastId = toast.loading('Scheduling…');
 		try {
 			const valid = await form.submit();
 			if (!valid) {
-				toast.error('Please check the form — some fields are invalid.');
+				const issues = createPostForm.fields.allIssues();
+				toast.error(issues?.[0]?.message ?? 'Please check the form — some fields are invalid.', {
+					id: toastId
+				});
 				return;
 			}
 			if (createPostForm.result?.ok === false) {
-				toast.error(createPostForm.result.message || 'Could not schedule the post.');
+				toast.error(createPostForm.result.message || 'Could not schedule the post.', {
+					id: toastId
+				});
 				return;
 			}
-			toast.success('Scheduled — Aghara will announce on time.');
+			toast.success('Scheduled — Aghara will announce on time.', { id: toastId });
 			goto('/schedule');
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Could not schedule the post.');
+			toast.error(err instanceof Error ? err.message : 'Could not schedule the post.', {
+				id: toastId
+			});
 		}
 	}
 </script>
@@ -395,13 +404,28 @@
 								will auto-split on {activePlatform?.name}.
 							</p>
 						{/if}
+						{#each createPostForm.fields.body?.issues() ?? [] as issue (issue.message)}
+							<p class="text-xs text-destructive">{issue.message}</p>
+						{/each}
+						{#each createPostForm.fields.targets?.issues() ?? [] as issue (issue.message)}
+							<p class="text-xs text-destructive">{issue.message}</p>
+						{/each}
+						{#if createPostForm.result && !createPostForm.result.ok}
+							<p class="text-sm text-destructive" role="alert">{createPostForm.result.message}</p>
+						{/if}
 						<Button
 							type="submit"
 							class="w-full gap-2"
-							disabled={overLimit || (isThread ? submittedSegments.length === 0 : !body.trim())}
+							disabled={createPostForm.pending > 0 ||
+								overLimit ||
+								(isThread ? submittedSegments.length === 0 : !body.trim())}
 						>
-							<Send class="size-4" /> Schedule
-							<ArrowRight class="size-4" />
+							{#if createPostForm.pending > 0}
+								<LoaderCircle class="size-4 animate-spin" /> Scheduling…
+							{:else}
+								<Send class="size-4" /> Schedule
+								<ArrowRight class="size-4" />
+							{/if}
 						</Button>
 					</CardFooter>
 				</Card>

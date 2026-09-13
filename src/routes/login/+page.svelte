@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 	import { signInForm } from '$lib/remote';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -12,7 +13,7 @@
 		CardTitle
 	} from '$lib/components/ui/card/index.js';
 	import PasswordInput from '$lib/components/blocks/PasswordInput.svelte';
-	import { Megaphone, ArrowRight } from '@lucide/svelte/icons';
+	import { Megaphone, ArrowRight, LoaderCircle } from '@lucide/svelte/icons';
 </script>
 
 <svelte:head>
@@ -40,8 +41,21 @@
 			<CardContent>
 				<form
 					{...signInForm.enhance(async (form) => {
-						if ((await form.submit()) && form.result?.ok) {
-							goto('/dashboard');
+						try {
+							const ok = await form.submit();
+							if (!ok) {
+								const issues = signInForm.fields.allIssues();
+								if (issues?.[0]?.message) toast.error(issues[0].message);
+								return;
+							}
+							if (form.result?.ok) {
+								toast.success('Welcome back — taking you to your dashboard.');
+								goto('/dashboard');
+							} else if (form.result && !form.result.ok) {
+								toast.error(form.result.message);
+							}
+						} catch (e) {
+							toast.error(e instanceof Error ? e.message : 'Sign-in failed. Try again.');
 						}
 					})}
 					class="space-y-4"
@@ -53,7 +67,11 @@
 							id="email"
 							placeholder="you@example.com"
 							autocomplete="email"
+							disabled={signInForm.pending > 0}
 						/>
+						{#each signInForm.fields.email.issues() ?? [] as issue (issue.message)}
+							<p class="text-xs text-destructive" role="alert">{issue.message}</p>
+						{/each}
 					</div>
 					<div class="space-y-2">
 						<Label for="password">Password</Label>
@@ -62,13 +80,21 @@
 							id="password"
 							placeholder="Your password"
 							autocomplete="current-password"
+							disabled={signInForm.pending > 0}
 						/>
+						{#each signInForm.fields.password.issues() ?? [] as issue (issue.message)}
+							<p class="text-xs text-destructive" role="alert">{issue.message}</p>
+						{/each}
 					</div>
 					{#if signInForm.result && !signInForm.result.ok}
 						<p class="text-sm text-destructive" role="alert">{signInForm.result.message}</p>
 					{/if}
-					<Button type="submit" class="w-full gap-2">
-						Sign in <ArrowRight class="size-4" />
+					<Button type="submit" class="w-full gap-2" disabled={signInForm.pending > 0}>
+						{#if signInForm.pending > 0}
+							<LoaderCircle class="size-4 animate-spin" /> Signing in…
+						{:else}
+							Sign in <ArrowRight class="size-4" />
+						{/if}
 					</Button>
 				</form>
 				<p class="mt-4 text-center text-sm text-muted-foreground">

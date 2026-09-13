@@ -19,6 +19,7 @@
 	import MastodonIcon from '$lib/components/brand/MastodonIcon.svelte';
 	import TelegramIcon from '$lib/components/brand/TelegramIcon.svelte';
 	import ThreadsIcon from '$lib/components/brand/ThreadsIcon.svelte';
+	import { LoaderCircle } from '@lucide/svelte/icons';
 	import type { Component } from 'svelte';
 
 	let {
@@ -72,21 +73,29 @@
 	// this callback and returns the form instance to spread. Do NOT use
 	// `use:enhance` from `$app/forms` — that posts to the page itself (405).
 	async function onSubmit(form: { submit: () => Promise<boolean> }) {
+		const toastId = toast.loading('Connecting…');
 		try {
 			const valid = await form.submit();
 			if (!valid) {
-				toast.error('Please check the form — some fields are invalid.');
+				const issues = connectAccountForm.fields.allIssues();
+				toast.error(issues?.[0]?.message ?? 'Please check the form — some fields are invalid.', {
+					id: toastId
+				});
 				return;
 			}
 			if (connectAccountForm.result?.ok === false) {
-				toast.error(connectAccountForm.result.message || 'Could not connect that account.');
+				toast.error(connectAccountForm.result.message || 'Could not connect that account.', {
+					id: toastId
+				});
 				return;
 			}
-			toast.success('Connected.');
+			toast.success('Connected.', { id: toastId });
 			accounts.refresh();
 			onClose();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Could not connect that account.');
+			toast.error(err instanceof Error ? err.message : 'Could not connect that account.', {
+				id: toastId
+			});
 		}
 	}
 </script>
@@ -205,9 +214,26 @@
 				</div>
 			{/if}
 
+			{#each connectAccountForm.fields.allIssues() ?? [] as issue (issue.message)}
+				<p class="text-xs text-destructive" role="alert">{issue.message}</p>
+			{/each}
+			{#if connectAccountForm.result && !connectAccountForm.result.ok}
+				<p class="text-sm text-destructive" role="alert">{connectAccountForm.result.message}</p>
+			{/if}
 			<DialogFooter>
-				<Button type="button" variant="outline" onclick={onClose}>Cancel</Button>
-				<Button type="submit">Connect</Button>
+				<Button
+					type="button"
+					variant="outline"
+					onclick={onClose}
+					disabled={connectAccountForm.pending > 0}>Cancel</Button
+				>
+				<Button type="submit" disabled={connectAccountForm.pending > 0} class="gap-2">
+					{#if connectAccountForm.pending > 0}
+						<LoaderCircle class="size-4 animate-spin" /> Connecting…
+					{:else}
+						Connect
+					{/if}
+				</Button>
 			</DialogFooter>
 		</form>
 	</DialogContent>

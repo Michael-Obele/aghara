@@ -11,6 +11,7 @@
 		SheetTitle,
 		SheetTrigger
 	} from '$lib/components/ui/sheet/index.js';
+	import { toast } from 'svelte-sonner';
 	import {
 		Megaphone,
 		LayoutDashboard,
@@ -21,7 +22,8 @@
 		KeyRound,
 		LogOut,
 		Menu,
-		Infinity
+		Infinity,
+		LoaderCircle
 	} from '@lucide/svelte/icons';
 
 	let { children, data }: { children: import('svelte').Snippet; data: { user: { name: string } } } =
@@ -38,9 +40,21 @@
 
 	const plan = myPlanQuery();
 
+	let signingOut = $state(false);
+
 	async function signOut() {
-		await signOutCommand();
-		goto('/');
+		if (signingOut) return;
+		signingOut = true;
+		const toastId = toast.loading('Signing out…');
+		try {
+			await signOutCommand();
+			toast.success('Signed out.', { id: toastId });
+			goto('/');
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : 'Sign-out failed.', { id: toastId });
+		} finally {
+			signingOut = false;
+		}
 	}
 
 	function isActive(href: string) {
@@ -93,8 +107,13 @@
 				variant="ghost"
 				class="mt-3 w-full justify-start gap-2 text-muted-foreground"
 				onclick={signOut}
+				disabled={signingOut}
 			>
-				<LogOut class="size-4" aria-hidden="true" /> Sign out
+				{#if signingOut}
+					<LoaderCircle class="size-4 animate-spin" aria-hidden="true" /> Signing out…
+				{:else}
+					<LogOut class="size-4" aria-hidden="true" /> Sign out
+				{/if}
 			</Button>
 		</div>
 	</aside>
@@ -137,10 +156,15 @@
 						{/each}
 						<button
 							type="button"
-							class="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent/60 hover:text-accent-foreground"
+							class="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent/60 hover:text-accent-foreground disabled:opacity-50"
 							onclick={signOut}
+							disabled={signingOut}
 						>
-							<LogOut class="size-4 shrink-0" aria-hidden="true" /> Sign out
+							{#if signingOut}
+								<LoaderCircle class="size-4 shrink-0 animate-spin" aria-hidden="true" /> Signing out…
+							{:else}
+								<LogOut class="size-4 shrink-0" aria-hidden="true" /> Sign out
+							{/if}
 						</button>
 					</nav>
 				</SheetContent>

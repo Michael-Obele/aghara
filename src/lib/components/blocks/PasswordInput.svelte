@@ -38,25 +38,25 @@
 
 <div class="relative">
 	{#if field}
+		{@const fieldAttrs = field.as(inputType)}
 		<Input
-			{...field.as(inputType)}
-			{id}
-			{name}
-			{placeholder}
-			{autocomplete}
-			{required}
-			{disabled}
+			{...fieldAttrs}
+			id={id}
+			placeholder={placeholder}
+			autocomplete={autocomplete}
+			required={required}
+			disabled={disabled}
 			class="pr-10 {className}"
 		/>
 	{:else}
 		<Input
-			{id}
-			{name}
+			id={id}
+			name={name}
 			type={inputType}
-			{placeholder}
-			{autocomplete}
-			{required}
-			{disabled}
+			placeholder={placeholder}
+			autocomplete={autocomplete}
+			required={required}
+			disabled={disabled}
 			bind:value
 			class="pr-10 {className}"
 		/>

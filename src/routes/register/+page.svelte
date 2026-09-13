@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 	import { signUpForm } from '$lib/remote';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -12,7 +13,7 @@
 		CardTitle
 	} from '$lib/components/ui/card/index.js';
 	import PasswordInput from '$lib/components/blocks/PasswordInput.svelte';
-	import { Megaphone, Check, ArrowRight } from '@lucide/svelte/icons';
+	import { Megaphone, Check, ArrowRight, LoaderCircle } from '@lucide/svelte/icons';
 </script>
 
 <svelte:head>
@@ -80,8 +81,21 @@
 				<CardContent>
 					<form
 						{...signUpForm.enhance(async (form) => {
-							if ((await form.submit()) && form.result?.ok) {
-								goto('/billing');
+							try {
+								const ok = await form.submit();
+								if (!ok) {
+									const issues = signUpForm.fields.allIssues();
+									if (issues?.[0]?.message) toast.error(issues[0].message);
+									return;
+								}
+								if (form.result?.ok) {
+									toast.success('Account created — choose your plan to get started.');
+									goto('/billing');
+								} else if (form.result && !form.result.ok) {
+									toast.error(form.result.message);
+								}
+							} catch (e) {
+								toast.error(e instanceof Error ? e.message : 'Registration failed. Try again.');
 							}
 						})}
 						class="space-y-4"
@@ -93,7 +107,11 @@
 								id="name"
 								placeholder="Your name"
 								autocomplete="name"
+								disabled={signUpForm.pending > 0}
 							/>
+							{#each signUpForm.fields.name.issues() ?? [] as issue (issue.message)}
+								<p class="text-xs text-destructive" role="alert">{issue.message}</p>
+							{/each}
 						</div>
 						<div class="space-y-2">
 							<Label for="email">Email</Label>
@@ -102,7 +120,11 @@
 								id="email"
 								placeholder="you@example.com"
 								autocomplete="email"
+								disabled={signUpForm.pending > 0}
 							/>
+							{#each signUpForm.fields.email.issues() ?? [] as issue (issue.message)}
+								<p class="text-xs text-destructive" role="alert">{issue.message}</p>
+							{/each}
 						</div>
 						<div class="space-y-2">
 							<Label for="password">Password</Label>
@@ -111,13 +133,21 @@
 								id="password"
 								placeholder="At least 8 characters"
 								autocomplete="new-password"
+								disabled={signUpForm.pending > 0}
 							/>
+							{#each signUpForm.fields.password.issues() ?? [] as issue (issue.message)}
+								<p class="text-xs text-destructive" role="alert">{issue.message}</p>
+							{/each}
 						</div>
 						{#if signUpForm.result && !signUpForm.result.ok}
 							<p class="text-sm text-destructive" role="alert">{signUpForm.result.message}</p>
 						{/if}
-						<Button type="submit" class="w-full gap-2">
-							Create my account <ArrowRight class="size-4" />
+						<Button type="submit" class="w-full gap-2" disabled={signUpForm.pending > 0}>
+							{#if signUpForm.pending > 0}
+								<LoaderCircle class="size-4 animate-spin" /> Creating account…
+							{:else}
+								Create my account <ArrowRight class="size-4" />
+							{/if}
 						</Button>
 					</form>
 					<p class="mt-4 text-center text-sm text-muted-foreground">

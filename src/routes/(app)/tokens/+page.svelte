@@ -19,7 +19,7 @@
 		DialogHeader,
 		DialogTitle
 	} from '$lib/components/ui/dialog/index.js';
-	import { KeyRound, Plus, Copy, Trash2, AlertTriangle } from '@lucide/svelte/icons';
+	import { KeyRound, Plus, Copy, Trash2, AlertTriangle, LoaderCircle } from '@lucide/svelte/icons';
 
 	const tokens = listTokensQuery();
 
@@ -31,13 +31,15 @@
 	async function create() {
 		if (!name.trim()) return;
 		creating = true;
+		const toastId = toast.loading('Creating token…');
 		try {
 			const result = await createTokenCommand({ name: name.trim() });
 			newToken = { name: result.name, raw: result.raw };
 			name = '';
+			toast.success('Token created — copy it now.', { id: toastId });
 			tokens.refresh();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Could not create token');
+			toast.error(err instanceof Error ? err.message : 'Could not create token', { id: toastId });
 		} finally {
 			creating = false;
 		}
@@ -52,12 +54,13 @@
 	async function revoke(id: string, tokenName: string) {
 		if (!confirm(`Revoke "${tokenName}"? Anything using it will stop working.`)) return;
 		busy = id;
+		const toastId = toast.loading(`Revoking "${tokenName}"…`);
 		try {
 			await revokeTokenCommand({ tokenId: id });
-			toast.success('Token revoked.');
+			toast.success('Token revoked.', { id: toastId });
 			tokens.refresh();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Revoke failed');
+			toast.error(err instanceof Error ? err.message : 'Revoke failed', { id: toastId });
 		} finally {
 			busy = null;
 		}
@@ -105,7 +108,11 @@
 					}}
 				/>
 				<Button onclick={create} disabled={creating || !name.trim()} class="shrink-0 gap-2">
-					<Plus class="size-4" /> Create
+					{#if creating}
+						<LoaderCircle class="size-4 animate-spin" /> Creating…
+					{:else}
+						<Plus class="size-4" /> Create
+					{/if}
 				</Button>
 			</div>
 		</CardContent>
@@ -152,7 +159,11 @@
 									disabled={busy === token.id}
 									onclick={() => revoke(token.id, token.name)}
 								>
-									<Trash2 class="size-3.5" /> Revoke
+									{#if busy === token.id}
+										<LoaderCircle class="size-3.5 animate-spin" /> Revoking…
+									{:else}
+										<Trash2 class="size-3.5" /> Revoke
+									{/if}
 								</Button>
 							{/if}
 						</div>

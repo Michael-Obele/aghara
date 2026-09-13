@@ -40,7 +40,8 @@
 		ChevronDown,
 		Info,
 		RotateCcw,
-		ListTree
+		ListTree,
+		LoaderCircle
 	} from '@lucide/svelte/icons';
 	import type { Component } from 'svelte';
 
@@ -127,13 +128,14 @@
 			return;
 		}
 		busy = retryTarget;
+		const toastId = toast.loading('Re-queueing…');
 		try {
 			await retryScheduledCommand({ scheduledId: retryTarget, runAt: when.toISOString() });
-			toast.success('Re-queued — Aghara will retry on time.');
+			toast.success('Re-queued — Aghara will retry on time.', { id: toastId });
 			retryTarget = null;
 			scheduled.refresh();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Retry failed');
+			toast.error(err instanceof Error ? err.message : 'Retry failed', { id: toastId });
 		} finally {
 			busy = null;
 		}
@@ -141,12 +143,13 @@
 
 	async function publishNow(id: string) {
 		busy = id;
+		const toastId = toast.loading('Publishing…');
 		try {
 			const result = await publishNowCommand({ scheduledId: id });
-			toast.success(result.postedUrl ? 'Published — link saved.' : 'Published.');
+			toast.success(result.postedUrl ? 'Published — link saved.' : 'Published.', { id: toastId });
 			scheduled.refresh();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Publish failed');
+			toast.error(err instanceof Error ? err.message : 'Publish failed', { id: toastId });
 		} finally {
 			busy = null;
 		}
@@ -154,12 +157,13 @@
 
 	async function cancel(id: string) {
 		busy = id;
+		const toastId = toast.loading('Canceling…');
 		try {
 			await cancelScheduledCommand({ scheduledId: id });
-			toast.success('Canceled.');
+			toast.success('Canceled.', { id: toastId });
 			scheduled.refresh();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Cancel failed');
+			toast.error(err instanceof Error ? err.message : 'Cancel failed', { id: toastId });
 		} finally {
 			busy = null;
 		}
@@ -295,7 +299,11 @@
 													disabled={busy === post.scheduledId}
 													onclick={() => publishNow(post.scheduledId)}
 												>
-													<Send class="size-3.5" /> Publish now
+													{#if busy === post.scheduledId}
+														<LoaderCircle class="size-3.5 animate-spin" /> Publishing…
+													{:else}
+														<Send class="size-3.5" /> Publish now
+													{/if}
 												</Button>
 												<Button
 													size="sm"
@@ -304,7 +312,11 @@
 													disabled={busy === post.scheduledId}
 													onclick={() => cancel(post.scheduledId)}
 												>
-													<X class="size-3.5" /> Cancel
+													{#if busy === post.scheduledId}
+														<LoaderCircle class="size-3.5 animate-spin" /> Canceling…
+													{:else}
+														<X class="size-3.5" /> Cancel
+													{/if}
 												</Button>
 											{:else if post.status === 'failed'}
 												<Button
@@ -451,14 +463,23 @@
 				<p class="text-xs text-muted-foreground">Defaults to five minutes from now.</p>
 			</div>
 			<DialogFooter>
-				<Button type="button" variant="outline" onclick={() => (retryTarget = null)}>Cancel</Button>
+				<Button
+					type="button"
+					variant="outline"
+					onclick={() => (retryTarget = null)}
+					disabled={busy === retryTarget}>Cancel</Button
+				>
 				<Button
 					type="button"
 					class="gap-1.5"
 					disabled={busy === retryTarget || !retryRunAtLocal}
 					onclick={confirmRetry}
 				>
-					<RotateCcw class="size-3.5" /> Retry at this time
+					{#if busy === retryTarget}
+						<LoaderCircle class="size-3.5 animate-spin" /> Re-queueing…
+					{:else}
+						<RotateCcw class="size-3.5" /> Retry at this time
+					{/if}
 				</Button>
 			</DialogFooter>
 		</DialogContent>

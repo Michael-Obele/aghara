@@ -5,7 +5,7 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import ConnectAccountDialog from '$lib/components/blocks/ConnectAccountDialog.svelte';
-	import { Link2, Plus, Trash2 } from '@lucide/svelte/icons';
+	import { Link2, Plus, Trash2, LoaderCircle } from '@lucide/svelte/icons';
 	import BlueskyIcon from '$lib/components/brand/BlueskyIcon.svelte';
 	import DiscordIcon from '$lib/components/brand/DiscordIcon.svelte';
 	import LinkedinIcon from '$lib/components/brand/LinkedinIcon.svelte';
@@ -27,14 +27,20 @@
 		{ id: 'threads', name: 'Threads', icon: ThreadsIcon, note: 'Meta token' }
 	];
 
+	let disconnectingId = $state<string | null>(null);
+
 	async function disconnect(id: string, label: string) {
 		if (!confirm(`Disconnect ${label}? Queued posts to it will be canceled.`)) return;
+		disconnectingId = id;
+		const toastId = toast.loading(`Disconnecting ${label}…`);
 		try {
 			await disconnectAccountCommand({ accountId: id });
-			toast.success('Disconnected.');
+			toast.success('Disconnected.', { id: toastId });
 			accounts.refresh();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Disconnect failed');
+			toast.error(err instanceof Error ? err.message : 'Disconnect failed', { id: toastId });
+		} finally {
+			disconnectingId = null;
 		}
 	}
 
@@ -107,11 +113,16 @@
 							</div>
 							<button
 								type="button"
-								class="text-muted-foreground transition hover:text-destructive"
+								class="text-muted-foreground transition hover:text-destructive disabled:opacity-50"
 								aria-label={`Disconnect ${account.label}`}
+								disabled={disconnectingId === account.id || disconnectAccountCommand.pending > 0}
 								onclick={() => disconnect(account.id, account.label)}
 							>
-								<Trash2 class="size-4" />
+								{#if disconnectingId === account.id}
+									<LoaderCircle class="size-4 animate-spin" />
+								{:else}
+									<Trash2 class="size-4" />
+								{/if}
 							</button>
 						</CardContent>
 					</Card>
