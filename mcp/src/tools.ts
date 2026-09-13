@@ -74,6 +74,7 @@ const PostsInputSchema = v.variant('action', [
 		body: v.pipe(v.string(), v.minLength(1), v.maxLength(20000)),
 		segments: v.optional(SegmentsSchema, []),
 		mediaUrls: v.optional(MediaUrlsSchema, []),
+		timezone: v.optional(v.string()),
 		targets: TargetsSchema
 	}),
 	v.object({ action: v.literal('publish_now'), scheduledId: v.pipe(v.string(), v.uuid()) }),
@@ -82,6 +83,13 @@ const PostsInputSchema = v.variant('action', [
 		action: v.literal('retry'),
 		scheduledId: v.pipe(v.string(), v.uuid()),
 		runAt: v.pipe(v.string(), v.isoTimestamp())
+	}),
+	v.object({
+		action: v.literal('update'),
+		scheduledId: v.pipe(v.string(), v.uuid()),
+		body: v.pipe(v.string(), v.minLength(1), v.maxLength(20000)),
+		segments: v.optional(SegmentsSchema, []),
+		runAt: v.optional(v.pipe(v.string(), v.isoTimestamp()))
 	})
 ]);
 
@@ -156,7 +164,7 @@ export function registerTools(server: McpServer<any, any>, apiFn: ApiFn = api): 
 		{
 			name: 'aghara_posts',
 			description:
-				'Manage scheduled posts. Actions: list — list scheduled posts (optional status filter); create — schedule a new post with targets (body ≤20000; call aghara_platforms FIRST to check the per-channel limit — over-limit text auto-splits into a thread/series on Bluesky/Mastodon/Threads/Telegram/Discord but is REJECTED on LinkedIn; pass explicit segments[] for thread parts, each ≤2000); publish_now — publish a queued post immediately; cancel — cancel a queued post; retry — re-queue a failed post at a new ISO time (runAt).',
+				'Manage scheduled posts. Actions: list — list scheduled posts (optional status filter); create — schedule a new post with targets (body ≤20000, optional IANA timezone; call aghara_platforms FIRST to check the per-channel limit — over-limit text auto-splits into a thread/series on Bluesky/Mastodon/Threads/Telegram/Discord but is REJECTED on LinkedIn; pass explicit segments[] for thread parts, each ≤2000); publish_now — publish a queued post immediately; cancel — cancel a queued post; retry — re-queue a failed post at a new ISO time (runAt); update — edit a post that has not been sent yet (body ≤20000, optional segments[]; optional runAt ISO to reschedule — queued posts only).',
 			schema: PostsInputSchema
 		},
 		async (input) => {
@@ -178,6 +186,7 @@ export function registerTools(server: McpServer<any, any>, apiFn: ApiFn = api): 
 								body: input.body,
 								segments: segments ?? [],
 								mediaUrls,
+								timezone: input.timezone,
 								targets
 							}
 						});
@@ -195,6 +204,19 @@ export function registerTools(server: McpServer<any, any>, apiFn: ApiFn = api): 
 							method: 'POST',
 							body: { runAt: input.runAt }
 						});
+					case 'update': {
+						// Gateways may stringify segments — coerce before forwarding.
+						const segments = coerceArray(input.segments) as typeof input.segments;
+						const payload: Record<string, unknown> = {
+							body: input.body,
+							segments: segments ?? []
+						};
+						if (input.runAt) payload.runAt = input.runAt;
+						return await json(client, `/api/v1/scheduled/${input.scheduledId}`, {
+							method: 'PATCH',
+							body: payload
+						});
+					}
 				}
 			} catch (err) {
 				return tool.error(toMessage(err));

@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import { cn } from '$lib/utils';
+	import { getBrowserTimeZone, localToInstant } from '$lib/time';
 	import { createPostForm, listAccountsQuery, listPlatformsQuery } from '$lib/remote';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import {
@@ -37,6 +38,8 @@
 	let mediaUrl = $state('');
 	let mediaUrls = $state<string[]>([]);
 	let targets = $state<{ channelAccountId: string; runAtLocal: string; runAtIso: string }[]>([]);
+	// IANA timezone captured once in the browser — stored with the schedule.
+	let timezone = $state('');
 
 	function defaultRunAtLocal(): string {
 		const d = new Date(Date.now() + 60 * 60 * 1000);
@@ -47,6 +50,7 @@
 
 	function initTargets() {
 		const first = accounts.current?.[0]?.id ?? '';
+		timezone = getBrowserTimeZone();
 		targets = [{ channelAccountId: first, runAtLocal: defaultRunAtLocal(), runAtIso: '' }];
 	}
 	// Populate once accounts arrive.
@@ -75,7 +79,11 @@
 
 	function toIso(local: string): string {
 		if (!local) return '';
-		return new Date(local).toISOString();
+		try {
+			return localToInstant(local, timezone || 'UTC');
+		} catch {
+			return '';
+		}
 	}
 
 	// Grapheme count (matches the server-side per-platform limits).
@@ -177,6 +185,7 @@
 				name="body"
 				value={isThread ? submittedSegments.join('\n\n') || body : body}
 			/>
+			<input type="hidden" name="timezone" value={timezone || 'UTC'} />
 			{#if isThread}
 				{#each submittedSegments as seg, i (i)}
 					<input type="hidden" name={`segments[${i}]`} value={seg} />

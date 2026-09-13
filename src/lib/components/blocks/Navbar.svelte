@@ -20,6 +20,7 @@
 		Link2,
 		CreditCard,
 		KeyRound,
+		Settings,
 		Infinity,
 		LoaderCircle,
 		ChevronDown,
@@ -91,7 +92,8 @@
 		{ href: '/schedule', label: 'Schedule', icon: CalendarClock },
 		{ href: '/accounts', label: 'Accounts', icon: Link2 },
 		{ href: '/billing', label: 'Billing', icon: CreditCard },
-		{ href: '/tokens', label: 'API tokens', icon: KeyRound }
+		{ href: '/tokens', label: 'API tokens', icon: KeyRound },
+		{ href: '/settings', label: 'Preferences', icon: Settings }
 	];
 
 	function isActive(href: string) {
@@ -101,7 +103,9 @@
 	const isWorkspaceActive = $derived(
 		isActive('/compose') || isActive('/schedule') || isActive('/accounts')
 	);
-	const isAccountActive = $derived(isActive('/billing') || isActive('/tokens'));
+	const isAccountActive = $derived(
+		isActive('/billing') || isActive('/tokens') || isActive('/settings')
+	);
 </script>
 
 <header
@@ -218,6 +222,16 @@
 								<span class="flex flex-col items-start gap-0.5">
 									<span class="font-medium">API tokens</span>
 									<span class="text-xs text-muted-foreground">Tokens for API & MCP</span>
+								</span>
+							</DropdownMenu.Item>
+							<DropdownMenu.Item
+								onclick={() => goto('/settings')}
+								class="flex items-center gap-3 py-2.5"
+							>
+								<Settings class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+								<span class="flex flex-col items-start gap-0.5">
+									<span class="font-medium">Preferences</span>
+									<span class="text-xs text-muted-foreground">Appearance and display</span>
 								</span>
 							</DropdownMenu.Item>
 						</DropdownMenu.Group>
@@ -390,6 +404,10 @@
 								<DropdownMenu.Item onclick={() => goto('/tokens')}>
 									<KeyRound class="size-4" />
 									API tokens
+								</DropdownMenu.Item>
+								<DropdownMenu.Item onclick={() => goto('/settings')}>
+									<Settings class="size-4" />
+									Preferences
 								</DropdownMenu.Item>
 							</DropdownMenu.Group>
 							<DropdownMenu.Separator />

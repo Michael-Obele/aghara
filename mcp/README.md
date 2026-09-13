@@ -23,12 +23,12 @@ A standalone **TMCP** (TypeScript MCP) server that remote-controls [Aghara](http
 
 ## Tools (4 — resource-oriented)
 
-| Tool               | Actions                                            |
-| ------------------ | -------------------------------------------------- |
-| `aghara_health`    | — (public status, no token needed)                 |
-| `aghara_accounts`  | `list`, `connect`, `disconnect`                    |
-| `aghara_posts`     | `list`, `create`, `publish_now`, `cancel`, `retry` |
-| `aghara_platforms` | — (limits matrix, call before `create`)            |
+| Tool               | Actions                                                      |
+| ------------------ | ------------------------------------------------------------ |
+| `aghara_health`    | — (public status, no token needed)                           |
+| `aghara_accounts`  | `list`, `connect`, `disconnect`                              |
+| `aghara_posts`     | `list`, `create`, `publish_now`, `cancel`, `retry`, `update` |
+| `aghara_platforms` | — (limits matrix, call before `create`)                      |
 
 Every tool forwards to the Aghara REST API (`/api/v1/*`) with the configured Bearer token. No business logic lives here.
 

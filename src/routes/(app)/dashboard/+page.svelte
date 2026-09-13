@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { listAccountsQuery, listScheduledQuery, myPlanQuery } from '$lib/remote';
+	import { formatDateTime, type TimeFormat } from '$lib/time';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -27,12 +28,7 @@
 	const firstName = $derived(data.user.name.split(' ')[0]);
 
 	function formatDate(d: Date | string) {
-		return new Date(d).toLocaleString(undefined, {
-			month: 'short',
-			day: 'numeric',
-			hour: 'numeric',
-			minute: '2-digit'
-		});
+		return formatDateTime(d, data.timeFormat as TimeFormat);
 	}
 </script>
 

@@ -3,6 +3,7 @@
 // before publishing; an in-memory in-flight set guards against a slow publish
 // being re-claimed by the next cron tick in the same process.
 import { and, eq, lte, sql } from 'drizzle-orm';
+import { Temporal } from 'temporal-polyfill';
 import { db } from '$lib/server/db';
 import { channelAccounts, posts, scheduledPosts } from '$lib/server/db/schema';
 import { decryptObject } from './crypto';
@@ -14,10 +15,12 @@ const inFlight = new Set<string>();
 
 /** Publish every due queued row. Returns how many were processed. */
 export async function publishDue(): Promise<number> {
+	// Temporal owns the clock read; the driver still takes a Date bounding value.
+	const now = new Date(Temporal.Now.instant().epochMilliseconds);
 	const due = await db
 		.select({ id: scheduledPosts.id })
 		.from(scheduledPosts)
-		.where(and(eq(scheduledPosts.status, 'queued'), lte(scheduledPosts.runAt, new Date())))
+		.where(and(eq(scheduledPosts.status, 'queued'), lte(scheduledPosts.runAt, now)))
 		.limit(BATCH_SIZE);
 
 	if (due.length > 0) {

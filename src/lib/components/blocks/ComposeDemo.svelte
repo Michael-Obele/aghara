@@ -73,7 +73,8 @@
 			return new Intl.DateTimeFormat(undefined, {
 				weekday: 'short',
 				hour: 'numeric',
-				minute: '2-digit'
+				minute: '2-digit',
+				hour12: true
 			}).format(new Date(runAt));
 		} catch {
 			return runAt;

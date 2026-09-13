@@ -13,7 +13,7 @@
 - **Authentication**: Better Auth (`better-auth/minimal` + `drizzleAdapter` + `sveltekitCookies` in `src/lib/server/auth.ts`). Email/password + optional GitHub OAuth. Session cookie for web (`event.locals.session/user` in `src/hooks.server.ts`); SHA-256 hashed Bearer `api_tokens` for REST/MCP.
 - **Scheduler**: `Bun.cron` every minute, in-process (native Bun API, no dependency). `startScheduler()` in `src/lib/server/scheduler.ts`, started once from `src/hooks.server.ts` guarded by `globalThis.__aghara_scheduler` + `building` check. No-overlap is built in; after a sleep the next tick's `publishDue()` catches up all due rows.
 - **Providers**: `src/lib/server/providers/` — a shared `types.ts` (the `Platform` contract, `PlatformFeatures` capability matrix, and thread/split helpers) + one `<channel>.ts` per platform implementing a single `Platform` object (`bluesky`/`linkedin`/`threads`/`mastodon`/`telegram`/`discord`). Threads: Bluesky/Mastodon/Threads chain real reply-threads; Telegram/Discord split sequentially; LinkedIn is a single post. `listPlatforms()` exposes limits+features to the client. Credentials encrypted JSON (AES-GCM, `APP_ENCRYPTION_KEY` in `src/lib/server/services/crypto.ts`).
-- **Billing**: Lemon Squeezy (plain fetch, no SDK) + webhook HMAC in `src/routes/api/webhooks/lemonsqueezy/+server.ts`. Plans: free / creator / pro. `SELF_HOST=true` disables billing (unlimited).
+- **Billing**: Paystack (plain fetch, no SDK) + webhook HMAC in `src/routes/api/webhooks/paystack/+server.ts`. Plans: free / creator / pro. `SELF_HOST=true` disables billing (unlimited).
 - **Icons**: Use `@lucide/svelte` (NEVER `lucide-svelte`). `import { IconName } from '@lucide/svelte'`. Sparingly, only for status/direction/action affordance. No decorative filler, no `Sparkles`/AI-style icons on buttons/headings/dropdowns. Prefer text-only dropdown options/tips/captions.
 - **Components**: shadcn-svelte + Bits UI (`bits-ui`, `shadcn-svelte`, `svelte-sonner`, `formsnap`). Never hand-write `src/lib/components/ui/*`; always install via `bunx shadcn-svelte@latest add <component>`. Aliases in `components.json`: `$lib/components`, `$lib/utils`, `$lib/hooks`.
 
@@ -73,7 +73,7 @@ Default to Remote Functions over `+page.server.ts` actions. `+page.server.ts` / 
 - Singleton `db` from `$lib/server/db`. No new clients per request.
 - Schema changes: `bun run db:push` (prototype), `bun run db:migrate` (stable), `bun run db:generate` + `bun run db:studio` to inspect. Auth tables: `bun run auth:schema` regenerates `auth.schema.ts` — do not hand-edit.
 - `drizzle.config.ts` requires `DATABASE_URL`; schema path `./src/lib/server/db/schema.ts`, dialect `postgresql`.
-- Env: `DATABASE_URL`, `ORIGIN`, `BETTER_AUTH_SECRET`, optional `GITHUB_CLIENT_ID/SECRET`, `APP_ENCRYPTION_KEY`, Lemon Squeezy keys, `SELF_HOST`. See `.env.example`.
+- Env: `DATABASE_URL`, `ORIGIN`, `BETTER_AUTH_SECRET`, optional `GITHUB_CLIENT_ID/SECRET`, `APP_ENCRYPTION_KEY`, Paystack keys, `SELF_HOST`. See `.env.example`.
 
 ### Accessibility (AAA)
 
@@ -98,7 +98,7 @@ Every page/route must pass WCAG AAA before done: contrast, legible size/weight, 
 - `src/lib/components/ui/`: CLI-generated only. `src/lib/components/`: shared in `blocks/`, route-specific in route-named folders.
 - `src/routes/api/v1/`: `health` (public GET), `accounts`, `posts`, `scheduled/[id]`, `tokens` (JSON only).
 - Admin: `bun run seed:admin` creates/updates `admin@svelte-apps.me` (env `ADMIN_EMAIL`/`ADMIN_PASSWORD`) with `role=admin` + a pro-for-life subscription. Admin always gets the pro plan (`isAdmin` in `src/lib/server/services/billing.ts`) and bypasses plan limits.
-- `src/routes/api/webhooks/lemonsqueezy/+server.ts`: raw body + `X-Signature` HMAC.
+- `src/routes/api/webhooks/paystack/+server.ts`: raw body + `x-paystack-signature` HMAC.
 - `src/routes/api/auth/[...all]/+server.ts`: Better Auth mount.
 - `src/hooks.server.ts`: Better Auth handler + single scheduler start.
 - `drizzle.config.ts`, `drizzle/`, `vite.config.ts` (runes forced), `components.json`, `plan/` (spec source of truth).

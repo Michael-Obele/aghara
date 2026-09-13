@@ -10,7 +10,9 @@ declare global {
 		}
 
 		// interface Error {}
-		// interface PageData {}
+		interface PageData {
+			timeFormat: '12h' | '24h';
+		}
 		// interface PageState {}
 		// interface Platform {}
 	}

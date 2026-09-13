@@ -1,12 +1,19 @@
 // Remote functions for posts (pages only — no HTTP to /api/v1).
 import { query, form, command } from '$app/server';
-import { CreatePostSchema, PublishNowSchema, CancelSchema, RetrySchema } from '$lib/schemas/post';
+import {
+	CreatePostSchema,
+	PublishNowSchema,
+	CancelSchema,
+	RetrySchema,
+	UpdatePostSchema
+} from '$lib/schemas/post';
 import {
 	createPost,
 	listScheduled,
 	publishNow,
 	cancelScheduled,
-	retryScheduled
+	retryScheduled,
+	updateScheduled
 } from '$lib/server/services/posts';
 import { AppError } from '$lib/server/services/errors';
 import { requireUserId } from '$lib/server/session';
@@ -46,3 +53,12 @@ export const retryScheduledCommand = command(RetrySchema, async (data) => {
 	const userId = requireUserId();
 	return retryScheduled(userId, data.scheduledId, data.runAt);
 });
+
+export const updateScheduledCommand = command(UpdatePostSchema, async (data) => {
+	const userId = requireUserId();
+	return updateScheduled(userId, data);
+});
+
+/** Row shape returned by `listScheduledQuery` — lets UI code type a scheduled
+ *  row without importing the server-only service module. */
+export type ScheduledPostRow = Awaited<ReturnType<typeof listScheduled>>[number];

@@ -1,11 +1,20 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
+	import { page } from '$app/state';
+	import {
+		formatDateTime,
+		formatRelativeTime,
+		getBrowserTimeZone,
+		localToInstant
+	} from '$lib/time';
 	import {
 		listScheduledQuery,
 		publishNowCommand,
 		cancelScheduledCommand,
 		retryScheduledCommand
 	} from '$lib/remote';
+	import type { ScheduledPostRow } from '$lib/remote';
+	import EditPostDialog from '$lib/components/schedule/EditPostDialog.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Card, CardContent } from '$lib/components/ui/card/index.js';
@@ -40,6 +49,7 @@
 		ChevronDown,
 		Info,
 		RotateCcw,
+		Pencil,
 		ListTree,
 		LoaderCircle
 	} from '@lucide/svelte/icons';
@@ -52,13 +62,22 @@
 	// Multiple rows can be expanded at once — each toggle adds/removes its id.
 	let expanded = $state<string[]>([]);
 
+	// Live "now" so relative labels stay fresh — ticked once a minute.
+	let now = $state(new Date());
+	$effect(() => {
+		const id = setInterval(() => (now = new Date()), 60_000);
+		return () => clearInterval(id);
+	});
+
 	function formatDate(d: Date | string) {
-		return new Date(d).toLocaleString(undefined, {
-			month: 'short',
-			day: 'numeric',
-			hour: 'numeric',
-			minute: '2-digit'
-		});
+		return formatDateTime(d, page.data.timeFormat);
+	}
+
+	function relativeFor(post: ScheduledPostRow, at: Date): string {
+		if (post.status === 'posted' && post.postedAt) {
+			return `posted ${formatRelativeTime(post.postedAt, at)}`;
+		}
+		return formatRelativeTime(post.runAt, at);
 	}
 
 	const statusMeta: Record<
@@ -104,6 +123,20 @@
 		return expanded.includes(id);
 	}
 
+	// Edit an unsent post (queued or failed) — opens the edit dialog.
+	let editTarget = $state<ScheduledPostRow | null>(null);
+
+	function siblingLabelsFor(row: ScheduledPostRow): string[] {
+		return (scheduled.current ?? [])
+			.filter(
+				(p) =>
+					p.postId === row.postId &&
+					p.scheduledId !== row.scheduledId &&
+					(p.status === 'queued' || p.status === 'failed')
+			)
+			.map((p) => p.label);
+	}
+
 	// Retry a failed post at a chosen time.
 	let retryTarget = $state<string | null>(null);
 	let retryRunAtLocal = $state('');
@@ -122,15 +155,17 @@
 
 	async function confirmRetry() {
 		if (!retryTarget || !retryRunAtLocal) return;
-		const when = new Date(retryRunAtLocal);
-		if (Number.isNaN(when.getTime())) {
+		let runAtIso: string;
+		try {
+			runAtIso = localToInstant(retryRunAtLocal, getBrowserTimeZone());
+		} catch {
 			toast.error('Pick a valid time.');
 			return;
 		}
 		busy = retryTarget;
 		const toastId = toast.loading('Re-queueing…');
 		try {
-			await retryScheduledCommand({ scheduledId: retryTarget, runAt: when.toISOString() });
+			await retryScheduledCommand({ scheduledId: retryTarget, runAt: runAtIso });
 			toast.success('Re-queued — Aghara will retry on time.', { id: toastId });
 			retryTarget = null;
 			scheduled.refresh();
@@ -282,6 +317,7 @@
 									>
 									<TableCell class="whitespace-nowrap text-muted-foreground">
 										{formatDate(post.runAt)}
+										<p class="mt-0.5 text-xs text-muted-foreground">{relativeFor(post, now)}</p>
 									</TableCell>
 									<TableCell>
 										<Badge variant={meta.variant} class="gap-1">
@@ -297,6 +333,15 @@
 													variant="outline"
 													class="gap-1.5"
 													disabled={busy === post.scheduledId}
+													onclick={() => (editTarget = post)}
+												>
+													<Pencil class="size-3.5" /> Edit
+												</Button>
+												<Button
+													size="sm"
+													variant="outline"
+													class="gap-1.5"
+													disabled={busy === post.scheduledId}
 													onclick={() => publishNow(post.scheduledId)}
 												>
 													{#if busy === post.scheduledId}
@@ -305,20 +350,16 @@
 														<Send class="size-3.5" /> Publish now
 													{/if}
 												</Button>
+											{:else if post.status === 'failed'}
 												<Button
 													size="sm"
-													variant="ghost"
-													class="gap-1.5 text-muted-foreground"
+													variant="outline"
+													class="gap-1.5"
 													disabled={busy === post.scheduledId}
-													onclick={() => cancel(post.scheduledId)}
+													onclick={() => (editTarget = post)}
 												>
-													{#if busy === post.scheduledId}
-														<LoaderCircle class="size-3.5 animate-spin" /> Canceling…
-													{:else}
-														<X class="size-3.5" /> Cancel
-													{/if}
+													<Pencil class="size-3.5" /> Edit
 												</Button>
-											{:else if post.status === 'failed'}
 												<Button
 													size="sm"
 													variant="outline"
@@ -484,4 +525,15 @@
 			</DialogFooter>
 		</DialogContent>
 	</Dialog>
+
+	{#if editTarget}
+		{#key editTarget.scheduledId}
+			<EditPostDialog
+				post={editTarget}
+				siblingLabels={siblingLabelsFor(editTarget)}
+				onclose={() => (editTarget = null)}
+				onsaved={() => scheduled.refresh()}
+			/>
+		{/key}
+	{/if}
 </div>
