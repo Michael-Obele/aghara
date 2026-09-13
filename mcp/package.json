@@ -1,6 +1,6 @@
 {
 	"name": "aghara-mcp",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "TMCP server that remote-controls Aghara (social scheduler) over its REST API",
 	"type": "module",
 	"main": "dist/index.js",

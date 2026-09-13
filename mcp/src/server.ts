@@ -31,7 +31,7 @@ export function createHandler(env: AgharaEnv) {
 	const server = new McpServer(
 		{
 			name: 'aghara-mcp',
-			version: '0.1.1',
+			version: '0.1.2',
 			description: 'Remote-control Aghara — the social scheduler — over its REST API.'
 		},
 		{
