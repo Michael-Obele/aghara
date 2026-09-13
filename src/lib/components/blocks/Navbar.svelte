@@ -17,7 +17,9 @@
 		CreditCard,
 		KeyRound,
 		User,
-		Infinity
+		Infinity,
+		ChevronDown,
+		ArrowRight
 	} from '@lucide/svelte/icons';
 
 	const userQuery = currentUserQuery();
@@ -57,13 +59,15 @@
 		mobileOpen = false;
 	}
 
-	const marketingNav = [
-		{ href: '/#how', label: 'How it works' },
-		{ href: '/#features', label: 'Why Aghara' },
-		{ href: '/#compare', label: 'Compare' },
-		{ href: '/#pricing', label: 'Pricing' },
-		{ href: '/#faq', label: 'FAQ' },
-		{ href: '/docs/mcp', label: 'MCP' }
+	const productLinks = [
+		{ href: '/#how', label: 'How it works', desc: 'Write once, post on time' },
+		{ href: '/#features', label: 'Why Aghara', desc: 'One draft, six networks' },
+		{ href: '/#compare', label: 'Compare', desc: 'How we differ' }
+	];
+
+	const resourceLinks = [
+		{ href: '/#faq', label: 'FAQ', desc: 'Answers, upfront' },
+		{ href: '/docs/mcp', label: 'MCP docs', desc: 'Automate with agents' }
 	];
 
 	const appNav = [
@@ -96,47 +100,103 @@
 		</a>
 
 		<!-- Center: desktop nav -->
-		<nav class="hidden items-center gap-6 text-sm md:flex" aria-label="Primary">
+		<nav class="hidden items-center gap-1 text-sm md:flex" aria-label="Primary">
 			{#if user}
 				<!-- Authenticated: quick app links (sidebar has full nav, navbar keeps it light) -->
 				<a
 					href="/dashboard"
 					class={isActive('/dashboard')
-						? 'font-medium text-foreground'
-						: 'text-muted-foreground transition hover:text-foreground'}
+						? 'rounded-md bg-accent px-3 py-2 font-medium text-foreground'
+						: 'rounded-md px-3 py-2 text-muted-foreground transition hover:bg-accent/60 hover:text-foreground'}
 				>
 					Dashboard
 				</a>
 				<a
 					href="/compose"
 					class={isActive('/compose')
-						? 'font-medium text-foreground'
-						: 'text-muted-foreground transition hover:text-foreground'}
+						? 'rounded-md bg-accent px-3 py-2 font-medium text-foreground'
+						: 'rounded-md px-3 py-2 text-muted-foreground transition hover:bg-accent/60 hover:text-foreground'}
 				>
 					Compose
 				</a>
 				<a
 					href="/schedule"
 					class={isActive('/schedule')
-						? 'font-medium text-foreground'
-						: 'text-muted-foreground transition hover:text-foreground'}
+						? 'rounded-md bg-accent px-3 py-2 font-medium text-foreground'
+						: 'rounded-md px-3 py-2 text-muted-foreground transition hover:bg-accent/60 hover:text-foreground'}
 				>
 					Schedule
 				</a>
 				<a
 					href="/accounts"
 					class={isActive('/accounts')
-						? 'font-medium text-foreground'
-						: 'text-muted-foreground transition hover:text-foreground'}
+						? 'rounded-md bg-accent px-3 py-2 font-medium text-foreground'
+						: 'rounded-md px-3 py-2 text-muted-foreground transition hover:bg-accent/60 hover:text-foreground'}
 				>
 					Accounts
 				</a>
 			{:else}
-				{#each marketingNav as item (item.href)}
-					<a href={item.href} class="text-muted-foreground transition hover:text-foreground">
-						{item.label}
-					</a>
-				{/each}
+				<!-- Grouped marketing nav: Product + Pricing + Resources (was 6 flat links) -->
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						{#snippet child({ props })}
+							<button
+								{...props}
+								class="flex items-center gap-1 rounded-md px-3 py-2 text-muted-foreground transition hover:bg-accent hover:text-foreground"
+							>
+								Product
+								<ChevronDown class="size-3.5 opacity-60" aria-hidden="true" />
+							</button>
+						{/snippet}
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="start" class="w-64">
+						<DropdownMenu.Label>Product</DropdownMenu.Label>
+						<DropdownMenu.Group>
+							{#each productLinks as link (link.href)}
+								<DropdownMenu.Item
+									onclick={() => goto(link.href)}
+									class="flex flex-col items-start gap-0.5 py-2"
+								>
+									<span class="font-medium">{link.label}</span>
+									<span class="text-xs text-muted-foreground">{link.desc}</span>
+								</DropdownMenu.Item>
+							{/each}
+						</DropdownMenu.Group>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+				<a
+					href="/#pricing"
+					class="rounded-md px-3 py-2 text-muted-foreground transition hover:bg-accent/60 hover:text-foreground"
+				>
+					Pricing
+				</a>
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						{#snippet child({ props })}
+							<button
+								{...props}
+								class="flex items-center gap-1 rounded-md px-3 py-2 text-muted-foreground transition hover:bg-accent hover:text-foreground"
+							>
+								Resources
+								<ChevronDown class="size-3.5 opacity-60" aria-hidden="true" />
+							</button>
+						{/snippet}
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="start" class="w-60">
+						<DropdownMenu.Label>Resources</DropdownMenu.Label>
+						<DropdownMenu.Group>
+							{#each resourceLinks as link (link.href)}
+								<DropdownMenu.Item
+									onclick={() => goto(link.href)}
+									class="flex flex-col items-start gap-0.5 py-2"
+								>
+									<span class="font-medium">{link.label}</span>
+									<span class="text-xs text-muted-foreground">{link.desc}</span>
+								</DropdownMenu.Item>
+							{/each}
+						</DropdownMenu.Group>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
 			{/if}
 		</nav>
 
@@ -210,7 +270,7 @@
 						<Button variant="ghost">Sign in</Button>
 					</a>
 					<a href="/register">
-						<Button>Post once, show up everywhere</Button>
+						<Button class="gap-1.5">Get started <ArrowRight class="size-4" /></Button>
 					</a>
 				</div>
 			{/if}
@@ -291,16 +351,46 @@
 								<LogOut class="size-4" /> Sign out
 							</Button>
 						{:else}
-							<nav class="space-y-1" aria-label="Marketing">
-								{#each marketingNav as item (item.href)}
+							<nav class="space-y-4" aria-label="Marketing">
+								<div>
+									<p
+										class="px-3 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase"
+									>
+										Product
+									</p>
+									{#each productLinks as item (item.href)}
+										<a
+											href={item.href}
+											onclick={closeMobile}
+											class="flex items-center rounded-md px-3 py-2.5 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+										>
+											{item.label}
+										</a>
+									{/each}
 									<a
-										href={item.href}
+										href="/#pricing"
 										onclick={closeMobile}
 										class="flex items-center rounded-md px-3 py-2.5 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
 									>
-										{item.label}
+										Pricing
 									</a>
-								{/each}
+								</div>
+								<div>
+									<p
+										class="px-3 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase"
+									>
+										Resources
+									</p>
+									{#each resourceLinks as item (item.href)}
+										<a
+											href={item.href}
+											onclick={closeMobile}
+											class="flex items-center rounded-md px-3 py-2.5 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+										>
+											{item.label}
+										</a>
+									{/each}
+								</div>
 							</nav>
 
 							<Separator />
@@ -310,7 +400,7 @@
 									<Button variant="outline" class="w-full">Sign in</Button>
 								</a>
 								<a href="/register" onclick={closeMobile}>
-									<Button class="w-full">Post once, show up everywhere</Button>
+									<Button class="w-full gap-1.5">Get started <ArrowRight class="size-4" /></Button>
 								</a>
 							</div>
 							<p class="text-center text-xs text-muted-foreground">

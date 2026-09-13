@@ -13,7 +13,7 @@
 
 	type Client = 'vscode' | 'claude' | 'codex' | 'zed' | 'npm';
 
-	let client = $state<Client>('vscode');
+	let client = $state<Client>('npm');
 	let copied = $state(false);
 
 	const snippets = $derived({
@@ -102,11 +102,11 @@
 	} as const satisfies Record<Client, { label: string; code: string }>);
 
 	const tabs: { id: Client; label: string }[] = [
+		{ id: 'npm', label: 'npm' },
 		{ id: 'vscode', label: 'VS Code' },
 		{ id: 'claude', label: 'Claude' },
 		{ id: 'codex', label: 'Codex' },
-		{ id: 'zed', label: 'Zed' },
-		{ id: 'npm', label: 'npm' }
+		{ id: 'zed', label: 'Zed' }
 	];
 
 	async function copy() {

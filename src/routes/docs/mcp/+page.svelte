@@ -9,6 +9,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Plug, Terminal, KeyRound, Server, CircleCheck } from '@lucide/svelte/icons';
 	import McpConnect from '$lib/components/blocks/McpConnect.svelte';
+	import { Button } from '$lib/components/ui/button/index.js';
 
 	const tools = [
 		{
@@ -23,7 +24,7 @@
 		},
 		{
 			name: 'aghara_posts',
-			desc: 'Schedule, publish, cancel, retry. Check aghara_platforms first for limits.',
+			desc: 'Schedule, publish, cancel, retry. Body up to 20000 chars, optional segments[] for threads. Check aghara_platforms first.',
 			actions: ['list', 'create', 'publish_now', 'cancel', 'retry']
 		},
 		{
@@ -41,18 +42,102 @@
 		<p class="flex items-center gap-2 text-sm text-muted-foreground">
 			<Plug class="size-4" /> Model Context Protocol
 		</p>
-		<h1 class="mt-2 text-3xl font-semibold tracking-tight">Control Aghara from your agent</h1>
+		<h1 class="mt-2 text-3xl font-semibold tracking-tight">
+			Schedule social posts from your agent. No dashboard clicks.
+		</h1>
 		<p class="mt-2 text-muted-foreground">
-			The MCP server is a thin forwarder over the REST API — no business logic lives in it. Point
-			any MCP client at <code class="rounded bg-muted px-1 py-0.5 font-mono text-sm">/mcp</code>
-			(Streamable HTTP) and use a token from <a href="/tokens" class="underline">API tokens</a>.
+			The Aghara MCP server is a thin forwarder over the REST API — no business logic lives in it.
+			Start with the npm version over STDIO. Self-host HTTP only if you need remote access. Use a
+			token from <a href="/tokens" class="underline">API tokens</a>.
 		</p>
+		<div class="mt-4 flex flex-wrap gap-2">
+			<Button href="/tokens">Create API token</Button>
+			<Button variant="outline" href="#npm">Copy npm setup</Button>
+		</div>
 	</div>
 
 	<Card>
 		<CardHeader>
-			<CardTitle class="flex items-center gap-2"><Server class="size-4" /> Endpoints</CardTitle>
-			<CardDescription>Not hosted yet — deploy first, then fill in your URL.</CardDescription>
+			<CardTitle class="flex items-center gap-2">
+				<CircleCheck class="size-4" /> Three steps to connect
+			</CardTitle>
+			<CardDescription>One token, one command, posts on schedule.</CardDescription>
+		</CardHeader>
+		<CardContent class="space-y-3 text-sm text-muted-foreground">
+			<ol class="list-decimal space-y-1.5 pl-5">
+				<li>
+					Create a token at <a href="/tokens" class="underline">API tokens</a> — the raw secret is shown
+					exactly once. Name it after what uses it (e.g. "my agent").
+				</li>
+				<li>
+					Give the MCP server
+					<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">AGHARA_BASE_URL</code>
+					+
+					<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">AGHARA_API_TOKEN</code>.
+				</li>
+				<li>
+					Call <code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">aghara_health</code>,
+					<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">aghara_accounts</code>,
+					<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">aghara_posts</code>. Check
+					<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">aghara_platforms</code>
+					before <code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">create</code>.
+				</li>
+			</ol>
+		</CardContent>
+	</Card>
+
+	<Card id="npm">
+		<CardHeader>
+			<CardTitle class="flex items-center gap-2">
+				<Terminal class="size-4" /> Recommended: run locally with
+				<code class="rounded bg-muted px-1 py-0.5 font-mono text-sm">bunx aghara-mcp</code>
+			</CardTitle>
+			<CardDescription>No hosting required. STDIO for local editors.</CardDescription>
+		</CardHeader>
+		<CardContent class="space-y-3 text-sm text-muted-foreground">
+			<p>
+				<Badge variant="secondary">Recommended</Badge>
+				<span class="ml-2">
+					Runs on your machine and talks to Aghara over REST. Works with VS Code, Claude Desktop,
+					and Codex CLI via the STDIO config below.
+				</span>
+			</p>
+			<ul class="list-disc space-y-1 pl-5">
+				<li>
+					Set
+					<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">AGHARA_BASE_URL</code>
+					to
+					<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs"
+						>https://aghara.svelte-apps.me</code
+					>
+					for prod,
+					<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">http://localhost:5173</code>
+					for dev.
+				</li>
+				<li>
+					Set
+					<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">AGHARA_API_TOKEN</code>
+					to the token from Step 1.
+				</li>
+				<li>
+					Default command is STDIO-only:
+					<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">bunx aghara-mcp</code>. Add
+					<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">--http</code>
+					or set
+					<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">PORT</code>
+					only for local HTTP testing.
+				</li>
+			</ul>
+		</CardContent>
+	</Card>
+
+	<Card>
+		<CardHeader>
+			<CardTitle class="flex items-center gap-2"><Server class="size-4" /> Self-host HTTP</CardTitle
+			>
+			<CardDescription
+				>Only if remote access is required. No public HTTP endpoint is hosted.</CardDescription
+			>
 		</CardHeader>
 		<CardContent class="space-y-2 text-sm">
 			<p>
@@ -68,13 +153,19 @@
 				>
 			</p>
 			<p class="text-muted-foreground">
-				Health check on <code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">/health</code>
-				for both. The app itself lives at
+				Deploy <code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">mcp/</code> yourself
+				(see <code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">mcp/README.md</code>),
+				then set
+				<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">AGHARA_BASE_URL</code>
+				and
+				<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">AGHARA_API_TOKEN</code>
+				as secrets. Health check on
+				<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">/health</code>. The MCP
+				endpoint itself is open — the forwarded
 				<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs"
-					>https://aghara.svelte-apps.me</code
+					>Authorization: Bearer &lt;token&gt;</code
 				>
-				— the MCP server forwards to it via
-				<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">AGHARA_BASE_URL</code>.
+				does the auth.
 			</p>
 		</CardContent>
 	</Card>
@@ -147,15 +238,15 @@
 	<Card>
 		<CardHeader>
 			<CardTitle class="flex items-center gap-2"><KeyRound class="size-4" /> Connect</CardTitle>
-			<CardDescription
-				>The MCP endpoint itself is open — your API token is the auth.</CardDescription
-			>
+			<CardDescription>
+				Start with npm — copy the STDIO config. HTTP tabs need your self-hosted URL.
+			</CardDescription>
 		</CardHeader>
 		<CardContent class="space-y-3 text-sm">
 			<ol class="list-decimal space-y-1.5 pl-5 text-muted-foreground">
 				<li>Create a token at <a href="/tokens" class="underline">API tokens</a>.</li>
 				<li>
-					Give the MCP server that token as
+					Paste it into
 					<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">AGHARA_API_TOKEN</code>
 					— it is sent as
 					<code class="rounded bg-muted px-1 py-0.5 font-mono text-xs"
@@ -163,7 +254,10 @@
 					>
 					on every REST call.
 				</li>
-				<li>Point your client at your deployed endpoint above.</li>
+				<li>
+					For HTTP only: point your client at your self-hosted endpoint above. The npm tab needs no
+					URL.
+				</li>
 			</ol>
 			<McpConnect endpoint="https://aghara-mcp.<your-account>.workers.dev/mcp" />
 		</CardContent>
@@ -172,7 +266,7 @@
 	<Card>
 		<CardHeader>
 			<CardTitle class="flex items-center gap-2"><Terminal class="size-4" /> Limits</CardTitle>
-			<CardDescription>What agents must check before scheduling.</CardDescription>
+			<CardDescription>Check limits before scheduling.</CardDescription>
 		</CardHeader>
 		<CardContent class="space-y-2 text-sm text-muted-foreground">
 			<p>
@@ -189,6 +283,17 @@
 					is rejected, trim first.
 				</li>
 			</ul>
+		</CardContent>
+	</Card>
+
+	<Card>
+		<CardHeader>
+			<CardTitle class="flex items-center gap-2">Start with the npm version</CardTitle>
+			<CardDescription>Create one token, paste one config, schedule from the agent.</CardDescription
+			>
+		</CardHeader>
+		<CardContent>
+			<Button href="/tokens">Create API token</Button>
 		</CardContent>
 	</Card>
 </div>
