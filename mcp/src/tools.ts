@@ -19,61 +19,28 @@ const TargetObject = v.object({
 	runAt: v.pipe(v.string(), v.isoTimestamp())
 });
 
-/**
- * Some MCP gateways stringify array args (targets arrives as "[{...}]"
- * instead of ([{...}]). Accept both forms: native array or its JSON string.
- */
-const TargetsField = v.pipe(
-	v.union([v.array(TargetObject), v.string()]),
-	v.transform((val) => {
-		if (typeof val === 'string') {
-			try {
-				return JSON.parse(val);
-			} catch {
-				return val;
-			}
+// Some MCP gateways stringify array args (targets arrives as "[{...}]"
+// instead of [{...}]). Accept both: native array for JSON Schema, plus
+// string for gateways — coercion happens at runtime in the handler because
+// v.transform cannot be converted to JSON Schema by the adapter.
+const TargetsSchema = v.union([v.pipe(v.array(TargetObject), v.minLength(1)), v.string()]);
+const SegmentsSchema = v.union([
+	v.array(v.pipe(v.string(), v.minLength(1), v.maxLength(2000))),
+	v.string()
+]);
+const MediaUrlsSchema = v.union([v.array(v.pipe(v.string(), v.url())), v.string()]);
+
+function coerceArray<T>(val: unknown): T[] | undefined {
+	if (typeof val === 'string') {
+		try {
+			const parsed = JSON.parse(val);
+			return Array.isArray(parsed) ? (parsed as T[]) : undefined;
+		} catch {
+			return undefined;
 		}
-		return val;
-	}),
-	v.array(TargetObject),
-	v.minLength(1)
-);
-
-const SegmentsField = v.optional(
-	v.pipe(
-		v.union([v.array(v.pipe(v.string(), v.minLength(1), v.maxLength(2000))), v.string()]),
-		v.transform((val) => {
-			if (typeof val === 'string') {
-				try {
-					return JSON.parse(val);
-				} catch {
-					return val;
-				}
-			}
-			return val;
-		}),
-		v.array(v.pipe(v.string(), v.minLength(1), v.maxLength(2000)))
-	),
-	[]
-);
-
-const MediaUrlsField = v.optional(
-	v.pipe(
-		v.union([v.array(v.pipe(v.string(), v.url())), v.string()]),
-		v.transform((val) => {
-			if (typeof val === 'string') {
-				try {
-					return JSON.parse(val);
-				} catch {
-					return val;
-				}
-			}
-			return val;
-		}),
-		v.array(v.pipe(v.string(), v.url()))
-	),
-	[]
-);
+	}
+	return val as T[] | undefined;
+}
 
 const ConnectAccountInputSchema = v.object({
 	action: v.literal('connect'),
@@ -105,9 +72,9 @@ const PostsInputSchema = v.variant('action', [
 		// Mirrors CreatePostSchema: generous cap (thread platforms auto-split),
 		// plus optional explicit thread segments (each ≤2000).
 		body: v.pipe(v.string(), v.minLength(1), v.maxLength(20000)),
-		segments: SegmentsField,
-		mediaUrls: MediaUrlsField,
-		targets: TargetsField
+		segments: v.optional(SegmentsSchema, []),
+		mediaUrls: v.optional(MediaUrlsSchema, []),
+		targets: TargetsSchema
 	}),
 	v.object({ action: v.literal('publish_now'), scheduledId: v.pipe(v.string(), v.uuid()) }),
 	v.object({ action: v.literal('cancel'), scheduledId: v.pipe(v.string(), v.uuid()) }),
@@ -200,16 +167,21 @@ export function registerTools(server: McpServer<any, any>, apiFn: ApiFn = api): 
 						const qs = input.status ? `?status=${input.status}` : '';
 						return await json(client, `/api/v1/posts${qs}`);
 					}
-					case 'create':
+					case 'create': {
+						// Gateways may stringify arrays — coerce before forwarding.
+						const targets = coerceArray(input.targets) as typeof input.targets;
+						const segments = coerceArray(input.segments) as typeof input.segments;
+						const mediaUrls = coerceArray(input.mediaUrls) as typeof input.mediaUrls;
 						return await json(client, '/api/v1/posts', {
 							method: 'POST',
 							body: {
 								body: input.body,
-								segments: input.segments ?? [],
-								mediaUrls: input.mediaUrls,
-								targets: input.targets
+								segments: segments ?? [],
+								mediaUrls,
+								targets
 							}
 						});
+					}
 					case 'publish_now':
 						return await json(client, `/api/v1/posts/${input.scheduledId}/publish-now`, {
 							method: 'POST'
