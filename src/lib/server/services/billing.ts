@@ -35,8 +35,12 @@ function planFromPaystackCode(code: string): 'creator' | 'pro' | null {
 // No free tier: every hosted user must hold an active paid subscription.
 // A user with no active subscription has plan === null and is gated to /billing.
 export const PLANS = {
-	creator: { accounts: 5, scheduledPerMonth: 500, tokens: true },
-	pro: { accounts: Number.POSITIVE_INFINITY, scheduledPerMonth: 2000, tokens: true }
+	creator: { accounts: 5, scheduledPerMonth: 5000, tokens: true },
+	pro: {
+		accounts: Number.POSITIVE_INFINITY,
+		scheduledPerMonth: Number.POSITIVE_INFINITY,
+		tokens: true
+	}
 } as const;
 
 export type Plan = 'creator' | 'pro' | 'self-host';
@@ -102,6 +106,8 @@ export async function checkLimit(
 		}
 	}
 	if (kind === 'scheduled') {
+		// Unlimited plans (Infinity) skip the count entirely — no DB hit.
+		if (!Number.isFinite(limits.scheduledPerMonth)) return;
 		const startOfMonth = new Date();
 		startOfMonth.setDate(1);
 		startOfMonth.setHours(0, 0, 0, 0);
@@ -119,7 +125,7 @@ export async function checkLimit(
 		if ((row?.count ?? 0) >= limits.scheduledPerMonth) {
 			throw new AppError(
 				'LIMIT_EXCEEDED',
-				`Your ${plan} plan allows ${limits.scheduledPerMonth} scheduled posts per month. Upgrade for more.`,
+				`Your ${plan} plan allows ${limitLabel(limits.scheduledPerMonth)} scheduled posts per month. Upgrade for more.`,
 				402
 			);
 		}

@@ -110,7 +110,7 @@ all plan limits are skipped (unlimited).
 
 ## Plans
 
-Hosted: Creator $5 (5 accounts, 500/mo, API tokens) · Pro $8 (unlimited, 2000/mo, API tokens).
+Hosted: Creator $5 (5 accounts, 5,000/mo, API tokens) · Pro $8 (unlimited accounts, unlimited posts, API tokens).
 No free tier — every hosted account requires an active paid subscription. Self-hosted: unlimited, free.
 
 Start here: https://aghara.svelte-apps.me — register, pick a plan, connect your first channel.
