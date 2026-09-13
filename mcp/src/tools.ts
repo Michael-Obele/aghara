@@ -14,6 +14,67 @@ const HealthSchema = v.object({});
 
 const PlatformsSchema = v.object({});
 
+const TargetObject = v.object({
+	channelAccountId: v.pipe(v.string(), v.uuid()),
+	runAt: v.pipe(v.string(), v.isoTimestamp())
+});
+
+/**
+ * Some MCP gateways stringify array args (targets arrives as "[{...}]"
+ * instead of ([{...}]). Accept both forms: native array or its JSON string.
+ */
+const TargetsField = v.pipe(
+	v.union([v.array(TargetObject), v.string()]),
+	v.transform((val) => {
+		if (typeof val === 'string') {
+			try {
+				return JSON.parse(val);
+			} catch {
+				return val;
+			}
+		}
+		return val;
+	}),
+	v.array(TargetObject),
+	v.minLength(1)
+);
+
+const SegmentsField = v.optional(
+	v.pipe(
+		v.union([v.array(v.pipe(v.string(), v.minLength(1), v.maxLength(2000))), v.string()]),
+		v.transform((val) => {
+			if (typeof val === 'string') {
+				try {
+					return JSON.parse(val);
+				} catch {
+					return val;
+				}
+			}
+			return val;
+		}),
+		v.array(v.pipe(v.string(), v.minLength(1), v.maxLength(2000)))
+	),
+	[]
+);
+
+const MediaUrlsField = v.optional(
+	v.pipe(
+		v.union([v.array(v.pipe(v.string(), v.url())), v.string()]),
+		v.transform((val) => {
+			if (typeof val === 'string') {
+				try {
+					return JSON.parse(val);
+				} catch {
+					return val;
+				}
+			}
+			return val;
+		}),
+		v.array(v.pipe(v.string(), v.url()))
+	),
+	[]
+);
+
 const ConnectAccountInputSchema = v.object({
 	action: v.literal('connect'),
 	channel: v.picklist(CHANNELS),
@@ -44,17 +105,9 @@ const PostsInputSchema = v.variant('action', [
 		// Mirrors CreatePostSchema: generous cap (thread platforms auto-split),
 		// plus optional explicit thread segments (each ≤2000).
 		body: v.pipe(v.string(), v.minLength(1), v.maxLength(20000)),
-		segments: v.optional(v.array(v.pipe(v.string(), v.minLength(1), v.maxLength(2000))), []),
-		mediaUrls: v.optional(v.array(v.pipe(v.string(), v.url())), []),
-		targets: v.pipe(
-			v.array(
-				v.object({
-					channelAccountId: v.pipe(v.string(), v.uuid()),
-					runAt: v.pipe(v.string(), v.isoTimestamp())
-				})
-			),
-			v.minLength(1)
-		)
+		segments: SegmentsField,
+		mediaUrls: MediaUrlsField,
+		targets: TargetsField
 	}),
 	v.object({ action: v.literal('publish_now'), scheduledId: v.pipe(v.string(), v.uuid()) }),
 	v.object({ action: v.literal('cancel'), scheduledId: v.pipe(v.string(), v.uuid()) }),
