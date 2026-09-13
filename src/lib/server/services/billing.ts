@@ -1,10 +1,36 @@
-// Billing — plan limits + Lemon Squeezy checkout/webhook sync.
+// Billing — plan limits + Paystack checkout/webhook sync.
 // SELF_HOST=true disables all billing checks and hides billing UI.
 import { and, eq, gte, inArray, sql } from 'drizzle-orm';
 import { env } from '$env/dynamic/private';
 import { db } from '$lib/server/db';
 import { channelAccounts, posts, scheduledPosts, subscriptions, user } from '$lib/server/db/schema';
 import { AppError } from './errors';
+
+// Paystack plan codes — NGN primary, USD optional (set PAYSTACK_PLAN_*_USD to enable USD).
+const PAYSTACK_PLANS: Record<string, string | undefined> = {
+	'creator:NGN': env.PAYSTACK_PLAN_CREATOR,
+	'creator:USD': env.PAYSTACK_PLAN_CREATOR_USD,
+	'pro:NGN': env.PAYSTACK_PLAN_PRO,
+	'pro:USD': env.PAYSTACK_PLAN_PRO_USD,
+	'creator_yearly:NGN': env.PAYSTACK_PLAN_CREATOR_YEARLY,
+	'creator_yearly:USD': env.PAYSTACK_PLAN_CREATOR_YEARLY_USD,
+	'pro_yearly:NGN': env.PAYSTACK_PLAN_PRO_YEARLY,
+	'pro_yearly:USD': env.PAYSTACK_PLAN_PRO_YEARLY_USD
+};
+
+function paystackPlanCode(plan: 'creator' | 'pro', currency: 'NGN' | 'USD'): string | undefined {
+	return PAYSTACK_PLANS[`${plan}:${currency}`];
+}
+
+function planFromPaystackCode(code: string): 'creator' | 'pro' | null {
+	for (const [key, val] of Object.entries(PAYSTACK_PLANS)) {
+		if (val && val === code) {
+			if (key.startsWith('creator')) return 'creator';
+			if (key.startsWith('pro')) return 'pro';
+		}
+	}
+	return null;
+}
 
 // No free tier: every hosted user must hold an active paid subscription.
 // A user with no active subscription has plan === null and is gated to /billing.
@@ -31,7 +57,6 @@ export async function getPlan(
 	if (isSelfHost()) {
 		return { plan: 'self-host', limits: null };
 	}
-	// Admin is always pro — no expiry, bypasses plan limits.
 	if (await isAdmin(userId)) {
 		return { plan: 'pro', limits: PLANS.pro };
 	}
@@ -56,7 +81,6 @@ export async function checkLimit(
 			402
 		);
 	}
-
 	if (kind === 'tokens' && !limits.tokens) {
 		throw new AppError(
 			'TOKENS_NOT_INCLUDED',
@@ -64,7 +88,6 @@ export async function checkLimit(
 			403
 		);
 	}
-
 	if (kind === 'accounts') {
 		const [row] = await db
 			.select({ count: sql<number>`count(*)::int` })
@@ -78,7 +101,6 @@ export async function checkLimit(
 			);
 		}
 	}
-
 	if (kind === 'scheduled') {
 		const startOfMonth = new Date();
 		startOfMonth.setDate(1);
@@ -108,126 +130,128 @@ function limitLabel(n: number): string {
 	return Number.isFinite(n) ? String(n) : 'unlimited';
 }
 
-/** Create a Lemon Squeezy hosted checkout URL for a plan variant. */
+/** Create a Paystack hosted checkout URL for a plan variant. */
 export async function startCheckout(
 	userId: string,
 	email: string,
-	variant: 'creator' | 'pro'
+	variant: 'creator' | 'pro',
+	opts?: { currency?: 'NGN' | 'USD' }
 ): Promise<string> {
 	if (isSelfHost()) {
 		throw new AppError('BILLING_DISABLED', 'Billing is disabled in self-host mode.', 400);
 	}
-	const apiKey = env.LEMON_API_KEY;
-	const storeId = env.LEMON_STORE_ID;
-	const variantId = variant === 'creator' ? env.LEMON_VARIANT_CREATOR : env.LEMON_VARIANT_PRO;
-	if (!apiKey || !storeId || !variantId) {
-		throw new AppError('BILLING_NOT_CONFIGURED', 'Billing is not configured yet.', 503);
+	const currency = opts?.currency ?? 'NGN';
+	const secret = env.PAYSTACK_SECRET_KEY;
+	if (!secret) throw new AppError('BILLING_NOT_CONFIGURED', 'Paystack is not configured yet.', 503);
+	const planCode = paystackPlanCode(variant, currency);
+	if (!planCode) {
+		throw new AppError(
+			'BILLING_NOT_CONFIGURED',
+			`No Paystack plan configured for ${variant} (${currency}).`,
+			503
+		);
 	}
-
-	const res = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
+	const res = await fetch('https://api.paystack.co/transaction/initialize', {
 		method: 'POST',
 		headers: {
-			authorization: `Bearer ${apiKey}`,
-			accept: 'application/vnd.api+json',
-			'content-type': 'application/vnd.api+json'
+			authorization: `Bearer ${secret}`,
+			'content-type': 'application/json'
 		},
 		body: JSON.stringify({
-			data: {
-				type: 'checkouts',
-				attributes: {
-					product_options: {
-						redirect_url: `${env.ORIGIN}/billing/success`
-					},
-					checkout_data: {
-						email,
-						custom: { user_id: userId }
-					}
-				},
-				relationships: {
-					store: { data: { type: 'stores', id: storeId } },
-					variant: { data: { type: 'variants', id: variantId } }
-				}
-			}
+			email,
+			plan: planCode,
+			currency,
+			callback_url: `${env.ORIGIN}/billing/success`,
+			metadata: { user_id: userId, plan: variant, currency }
 		})
 	});
 	if (!res.ok) {
 		const text = await res.text();
-		throw new AppError(
-			'CHECKOUT_FAILED',
-			`Lemon Squeezy checkout failed: ${text.slice(0, 200)}`,
-			502
-		);
+		throw new AppError('CHECKOUT_FAILED', `Paystack checkout failed: ${text.slice(0, 300)}`, 502);
 	}
-	const data = (await res.json()) as { data?: { attributes?: { url?: string } } };
-	const url = data.data?.attributes?.url;
-	if (!url) throw new AppError('CHECKOUT_FAILED', 'Lemon Squeezy returned no checkout URL', 502);
+	const data = (await res.json()) as { status?: boolean; data?: { authorization_url?: string } };
+	const url = data.data?.authorization_url;
+	if (!url) throw new AppError('CHECKOUT_FAILED', 'Paystack returned no checkout URL', 502);
 	return url;
 }
 
-/** Map a Lemon Squeezy variant id to our plan name. */
-function planFromVariant(variantId: string | number): Plan | null {
-	const id = String(variantId);
-	if (env.LEMON_VARIANT_CREATOR && id === String(env.LEMON_VARIANT_CREATOR)) return 'creator';
-	if (env.LEMON_VARIANT_PRO && id === String(env.LEMON_VARIANT_PRO)) return 'pro';
-	return null;
-}
-
 /**
- * Lemon Squeezy webhook → subscriptions upsert. The webhook is the source of
- * truth for plan state. Handles subscription_created/updated/cancelled/expired.
+ * Paystack webhook → subscriptions upsert. Handles charge.success (first
+ * payment creates subscription), subscription.create/disable, invoice events.
  */
-export async function syncLemonSubscription(payload: {
-	name?: string;
+export async function syncPaystackSubscription(payload: {
+	event?: string;
 	data?: Record<string, unknown>;
-	meta?: { custom_data?: { user_id?: string } };
 }): Promise<void> {
-	const name = payload.name ?? '';
-	if (!name.startsWith('subscription_')) return;
+	const event = payload.event ?? '';
+	const data = (payload.data ?? {}) as Record<string, unknown>;
+	const isChargeSuccess = event === 'charge.success';
+	const isSubscriptionEvent = event.startsWith('subscription.');
+	const isInvoiceEvent = event.startsWith('invoice.');
+	if (!isChargeSuccess && !isSubscriptionEvent && !isInvoiceEvent) return;
 
-	const attrs = (payload.data ?? {}) as Record<string, unknown>;
-	const customUserId = payload.meta?.custom_data?.user_id;
-	const variantId = attrs.variant_id as string | number | undefined;
-	const status = String(attrs.status ?? 'active');
-	const customerEmail = String(attrs.user_email ?? attrs.customer_email ?? '');
-	const lemonSubscriptionId = String(attrs.id ?? '');
-	const lemonCustomerId = String(attrs.customer_id ?? '');
-	const periodEnd = attrs.renews_at
-		? new Date(String(attrs.renews_at))
-		: attrs.ends_at
-			? new Date(String(attrs.ends_at))
-			: null;
+	const planCode =
+		(data.plan as { plan_code?: string } | undefined)?.plan_code ??
+		(data.plan_code as string | undefined) ??
+		'';
+	const customerCode =
+		(data.customer as { customer_code?: string } | undefined)?.customer_code ?? '';
+	const customerEmail = (data.customer as { email?: string } | undefined)?.email ?? '';
+	const subscriptionCode = (data.subscription_code as string | undefined) ?? '';
+	const emailToken = (data.email_token as string | undefined) ?? '';
+	const nextPaymentDate = data.next_payment_date ? new Date(String(data.next_payment_date)) : null;
 
-	// Identify the user: custom user_id first, fall back to email.
+	const metadata = (data.metadata as Record<string, unknown> | undefined) ?? {};
+	const customUserId = String(metadata.user_id ?? '');
 	let userId = customUserId;
 	if (!userId && customerEmail) {
 		const [u] = await db.select({ id: user.id }).from(user).where(eq(user.email, customerEmail));
 		userId = u?.id;
 	}
-	if (!userId) return; // unknown user — ignore
+	if (!userId) return;
 
-	const plan = planFromVariant(variantId ?? '');
-	const active = status === 'active' || status === 'on_trial' || status === 'paused';
-	// 'free' is the DB sentinel for "no paid plan" — getPlan() maps it to null (gated).
-	const newPlan = plan && active ? plan : 'free';
+	let active = true;
+	let plan: 'creator' | 'pro' | null = planCode ? planFromPaystackCode(planCode) : null;
+
+	if (event === 'subscription.disable' || event === 'subscription.not_renewing') {
+		active = false;
+	} else if (event === 'invoice.failed') {
+		return;
+	}
+	if (!plan && isChargeSuccess) {
+		const [existing] = await db
+			.select()
+			.from(subscriptions)
+			.where(eq(subscriptions.userId, userId));
+		plan = (existing?.plan as 'creator' | 'pro' | null) ?? null;
+		if (!plan) return;
+	}
+	if (!plan) return;
+
+	const newPlan = active ? plan : 'free';
 
 	await db
 		.insert(subscriptions)
 		.values({
 			userId,
 			plan: newPlan,
-			lemonCustomerId: lemonCustomerId || null,
-			lemonSubscriptionId: lemonSubscriptionId || null,
+			paystackCustomerCode: customerCode || null,
+			paystackSubscriptionCode: subscriptionCode || null,
+			paystackEmailToken: emailToken || null,
+			provider: 'paystack',
 			status: active ? 'active' : 'inactive',
-			currentPeriodEnd: periodEnd
+			currentPeriodEnd: nextPaymentDate
 		})
 		.onConflictDoUpdate({
 			target: subscriptions.userId,
 			set: {
 				plan: newPlan,
-				lemonCustomerId: lemonCustomerId || null,
-				lemonSubscriptionId: lemonSubscriptionId || null,
+				paystackCustomerCode: customerCode || null,
+				paystackSubscriptionCode: subscriptionCode || null,
+				paystackEmailToken: emailToken || null,
+				provider: 'paystack',
 				status: active ? 'active' : 'inactive',
-				currentPeriodEnd: periodEnd
+				currentPeriodEnd: nextPaymentDate
 			}
 		});
 }

@@ -79,14 +79,16 @@ export const scheduledPosts = pgTable(
 	(t) => [index('ix_due').on(t.status, t.runAt)]
 );
 
-// subscriptions — Lemon Squeezy webhook is source of truth; webhook upserts here.
+// subscriptions — Paystack webhook is source of truth; webhook upserts here.
 export const subscriptions = pgTable('subscriptions', {
 	userId: text('user_id')
 		.primaryKey()
 		.references(() => user.id, { onDelete: 'cascade' }),
 	plan: text('plan').notNull().default('free'), // creator|pro|free(=no plan sentinel)
-	lemonCustomerId: text('lemon_customer_id'),
-	lemonSubscriptionId: text('lemon_subscription_id'),
+	paystackCustomerCode: text('paystack_customer_code'),
+	paystackSubscriptionCode: text('paystack_subscription_code'),
+	paystackEmailToken: text('paystack_email_token'),
+	provider: text('provider').notNull().default('paystack'),
 	status: text('status').notNull().default('active'),
 	currentPeriodEnd: timestamp('current_period_end', { withTimezone: true })
 });

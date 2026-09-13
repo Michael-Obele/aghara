@@ -12,9 +12,9 @@ export const isSelfHostQuery = query(async () => isSelfHost());
 
 export const startCheckoutCommand = command(
 	'unchecked',
-	async ({ variant }: { variant: 'creator' | 'pro' }) => {
+	async ({ variant, currency }: { variant: 'creator' | 'pro'; currency?: 'NGN' | 'USD' }) => {
 		const user = requireUser();
-		const url = await startCheckout(user.id, user.email, variant);
+		const url = await startCheckout(user.id, user.email, variant, { currency });
 		return { url };
 	}
 );
