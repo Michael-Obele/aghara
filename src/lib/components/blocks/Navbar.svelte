@@ -15,9 +15,11 @@
 		Menu,
 		LogOut,
 		LayoutDashboard,
+		Send,
+		CalendarClock,
+		Link2,
 		CreditCard,
 		KeyRound,
-		User,
 		Infinity,
 		LoaderCircle,
 		ChevronDown,
@@ -85,6 +87,9 @@
 
 	const appNav = [
 		{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+		{ href: '/compose', label: 'Compose', icon: Send },
+		{ href: '/schedule', label: 'Schedule', icon: CalendarClock },
+		{ href: '/accounts', label: 'Accounts', icon: Link2 },
 		{ href: '/billing', label: 'Billing', icon: CreditCard },
 		{ href: '/tokens', label: 'API tokens', icon: KeyRound }
 	];
@@ -92,6 +97,11 @@
 	function isActive(href: string) {
 		return page.url.pathname === href;
 	}
+
+	const isWorkspaceActive = $derived(
+		isActive('/compose') || isActive('/schedule') || isActive('/accounts')
+	);
+	const isAccountActive = $derived(isActive('/billing') || isActive('/tokens'));
 </script>
 
 <header
@@ -115,7 +125,6 @@
 		<!-- Center: desktop nav -->
 		<nav class="hidden items-center gap-1 text-sm md:flex" aria-label="Primary">
 			{#if user}
-				<!-- Authenticated: quick app links (sidebar has full nav, navbar keeps it light) -->
 				<a
 					href="/dashboard"
 					class={isActive('/dashboard')
@@ -124,30 +133,96 @@
 				>
 					Dashboard
 				</a>
-				<a
-					href="/compose"
-					class={isActive('/compose')
-						? 'rounded-md bg-accent px-3 py-2 font-medium text-foreground'
-						: 'rounded-md px-3 py-2 text-muted-foreground transition hover:bg-accent/60 hover:text-foreground'}
-				>
-					Compose
-				</a>
-				<a
-					href="/schedule"
-					class={isActive('/schedule')
-						? 'rounded-md bg-accent px-3 py-2 font-medium text-foreground'
-						: 'rounded-md px-3 py-2 text-muted-foreground transition hover:bg-accent/60 hover:text-foreground'}
-				>
-					Schedule
-				</a>
-				<a
-					href="/accounts"
-					class={isActive('/accounts')
-						? 'rounded-md bg-accent px-3 py-2 font-medium text-foreground'
-						: 'rounded-md px-3 py-2 text-muted-foreground transition hover:bg-accent/60 hover:text-foreground'}
-				>
-					Accounts
-				</a>
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						{#snippet child({ props })}
+							<button
+								{...props}
+								class={isWorkspaceActive
+									? 'flex items-center gap-1 rounded-md bg-accent px-3 py-2 font-medium text-foreground'
+									: 'flex items-center gap-1 rounded-md px-3 py-2 text-muted-foreground transition hover:bg-accent hover:text-foreground'}
+							>
+								Workspace
+								<ChevronDown class="size-3.5 opacity-60" aria-hidden="true" />
+							</button>
+						{/snippet}
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="start" class="w-64">
+						<DropdownMenu.Label>Workspace</DropdownMenu.Label>
+						<DropdownMenu.Group>
+							<DropdownMenu.Item
+								onclick={() => goto('/compose')}
+								class="flex items-center gap-3 py-2.5"
+							>
+								<Send class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+								<span class="flex flex-col items-start gap-0.5">
+									<span class="font-medium">Compose</span>
+									<span class="text-xs text-muted-foreground">Write a new post</span>
+								</span>
+							</DropdownMenu.Item>
+							<DropdownMenu.Item
+								onclick={() => goto('/schedule')}
+								class="flex items-center gap-3 py-2.5"
+							>
+								<CalendarClock class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+								<span class="flex flex-col items-start gap-0.5">
+									<span class="font-medium">Schedule</span>
+									<span class="text-xs text-muted-foreground">Queued and history</span>
+								</span>
+							</DropdownMenu.Item>
+							<DropdownMenu.Item
+								onclick={() => goto('/accounts')}
+								class="flex items-center gap-3 py-2.5"
+							>
+								<Link2 class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+								<span class="flex flex-col items-start gap-0.5">
+									<span class="font-medium">Accounts</span>
+									<span class="text-xs text-muted-foreground">Connected channels</span>
+								</span>
+							</DropdownMenu.Item>
+						</DropdownMenu.Group>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						{#snippet child({ props })}
+							<button
+								{...props}
+								class={isAccountActive
+									? 'flex items-center gap-1 rounded-md bg-accent px-3 py-2 font-medium text-foreground'
+									: 'flex items-center gap-1 rounded-md px-3 py-2 text-muted-foreground transition hover:bg-accent hover:text-foreground'}
+							>
+								Settings
+								<ChevronDown class="size-3.5 opacity-60" aria-hidden="true" />
+							</button>
+						{/snippet}
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="start" class="w-64">
+						<DropdownMenu.Label>Settings</DropdownMenu.Label>
+						<DropdownMenu.Group>
+							<DropdownMenu.Item
+								onclick={() => goto('/billing')}
+								class="flex items-center gap-3 py-2.5"
+							>
+								<CreditCard class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+								<span class="flex flex-col items-start gap-0.5">
+									<span class="font-medium">Billing</span>
+									<span class="text-xs text-muted-foreground">Plan and usage</span>
+								</span>
+							</DropdownMenu.Item>
+							<DropdownMenu.Item
+								onclick={() => goto('/tokens')}
+								class="flex items-center gap-3 py-2.5"
+							>
+								<KeyRound class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+								<span class="flex flex-col items-start gap-0.5">
+									<span class="font-medium">API tokens</span>
+									<span class="text-xs text-muted-foreground">Tokens for API & MCP</span>
+								</span>
+							</DropdownMenu.Item>
+						</DropdownMenu.Group>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
 				<!-- Logged-in users keep marketing pages via Explore (same links as logged-out) -->
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger>
@@ -404,13 +479,6 @@
 										{item.label}
 									</a>
 								{/each}
-								<a
-									href="/dashboard"
-									onclick={closeMobile}
-									class="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-muted-foreground transition hover:bg-accent/60 hover:text-accent-foreground"
-								>
-									<User class="size-4 shrink-0" /> Dashboard
-								</a>
 							</nav>
 
 							<Separator />
