@@ -7,7 +7,10 @@
 	"bin": {
 		"aghara-mcp": "dist/index.js"
 	},
-	"files": ["dist", "README.md"],
+	"files": [
+		"dist",
+		"README.md"
+	],
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/Michael-Obele/aghara.git",
@@ -18,10 +21,9 @@
 		"start": "bun run src/index.ts --http",
 		"dev": "bun run --watch src/index.ts --http",
 		"check": "tsc --noEmit",
-		"prepublishOnly": "bun run build && bun run check",
+		"prepublishOnly": "bun run check && bun run build",
 		"deploy": "wrangler deploy",
-		"dev:worker": "wrangler dev",
-
+		"dev:worker": "wrangler dev"
 	},
 	"keywords": [
 		"tmcp",

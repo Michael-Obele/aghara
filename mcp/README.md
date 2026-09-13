@@ -67,7 +67,7 @@ Paste into your MCP client config (Claude Desktop, VS Code, Codex CLI):
 
 - Prod: `AGHARA_BASE_URL=https://aghara.svelte-apps.me` · Dev: `http://localhost:5173`
 - Pass `--http` (or set `PORT`) only for local HTTP testing.
-- Publish: `bun publish` from `mcp/` (runs `tsc` first via `prepublishOnly`).
+- Publish: automatic — any push to `main` touching `mcp/` runs check → build → smoke-test → auto-bump patch (if needed) → `npm publish` → tags `mcp/vX.Y.Z` (see `.github/workflows/publish-mcp.yml`). Manual: `bun publish` from `mcp/`.
 
 ## Develop locally
 
