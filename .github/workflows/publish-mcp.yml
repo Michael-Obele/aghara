@@ -1,12 +1,27 @@
-# Publish aghara-mcp to npm on version tags (mcp/v*).
-# Manual alternative: cd mcp && bun publish
+# Auto-publish aghara-mcp to npm whenever mcp/ changes on main.
+# - Push to main touching mcp/** (or this workflow) → check, build,
+#   smoke-test, auto-bump patch if the version is already on npm,
+#   publish, then push the version-bump commit + mcp/vX.Y.Z tag back.
+# - Tag push mcp/v* → publish that tag as-is (manual release escape hatch).
+# - Manual alternative: workflow_dispatch, or `cd mcp && bun publish`.
+# Loop guard: the auto-release commit message contains [skip mcp-publish],
+# which the job's `if:` skips (toJson makes it null-safe on tags/dispatch).
 name: Publish MCP to npm
 
 on:
   push:
+    branches:
+      - main
+    paths:
+      - 'mcp/**'
+      - '.github/workflows/publish-mcp.yml'
     tags:
       - 'mcp/v*'
   workflow_dispatch:
+
+concurrency:
+  group: mcp-publish
+  cancel-in-progress: false
 
 defaults:
   run:
@@ -14,22 +29,84 @@ defaults:
 
 jobs:
   publish:
+    if: "!contains(toJson(github.event.head_commit), '[skip mcp-publish]')"
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write # push the version-bump commit + tag back to main
       id-token: write # trusted publishing (no long-lived token)
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run check
+      - run: bun run build
+      - name: Smoke-test MCP bundle (Node stdio + HTTP)
+        run: |
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' '{"jsonrpc":"2.0","method":"notifications/initialized"}' '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | timeout 15 node dist/index.js 2>stdio.err | python3 -c "import sys,json; tools=json.loads(list(sys.stdin)[-1])['result']['tools']; names=sorted(t['name'] for t in tools); assert names == ['aghara_accounts','aghara_health','aghara_platforms','aghara_posts'], names; print('stdio tools OK:', ', '.join(names))"
+          test ! -s stdio.err || (cat stdio.err && exit 1)
+          PORT=8899 timeout 20 node dist/index.js --http & SRV=$!
+          sleep 3
+          curl -sf http://localhost:8899/health
+          curl -sf -X POST http://localhost:8899/mcp -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' -o /tmp/mcp-init.out
+          head -c 300 /tmp/mcp-init.out; echo
+          kill $SRV || true
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
       # npm 11.1+ required for provenance attestations.
       - run: npm install -g npm@latest
+      - name: Auto-bump patch if version already published
+        id: version
+        if: github.ref_type != 'tag'
+        run: |
+          set -euo pipefail
+          PUBLISHED="$(npm view aghara-mcp version 2>/dev/null || echo '0.0.0')"
+          LOCAL="$(node -p "require('./package.json').version")"
+          echo "local=$LOCAL published=$PUBLISHED"
+          cmp() { node -e 'const pa=process.argv[1].split(".").map(Number), pb=process.argv[2].split(".").map(Number); let r=0; for (let i=0;i<3;i++){ if (pa[i]!==pb[i]){ r=pa[i]<pb[i]?-1:1; break; } } console.log(r)' "$1" "$2"; }
+          BUMPED=false
+          while [ "$(cmp "$LOCAL" "$PUBLISHED")" != "1" ]; do
+            npm version patch --no-git-tag-version > /dev/null
+            LOCAL="$(node -p "require('./package.json').version")"
+            BUMPED=true
+          done
+          if [ "$BUMPED" = true ]; then
+            sed -i -E "s/version: '[0-9]+\.[0-9]+\.[0-9]+'/version: '$LOCAL'/" src/server.ts
+            bun run build
+            bun run check
+          fi
+          if git rev-parse "mcp/v$LOCAL" >/dev/null 2>&1; then
+            echo "Tag mcp/v$LOCAL already exists — bumping once more"
+            npm version patch --no-git-tag-version > /dev/null
+            LOCAL="$(node -p "require('./package.json').version")"
+            sed -i -E "s/version: '[0-9]+\.[0-9]+\.[0-9]+'/version: '$LOCAL'/" src/server.ts
+            bun run build
+            bun run check
+          fi
+          echo "version=$LOCAL" >> "$GITHUB_OUTPUT"
       # Provenance via OIDC trusted publishing — no NODE_AUTH_TOKEN needed.
       # Shows "Built and signed on GitHub Actions" on the npm package page.
       # Fallback: set NPM_TOKEN repo secret and use `npm publish` with NODE_AUTH_TOKEN.
       - run: npm publish --provenance --access public
+      - name: Push version-bump commit + tag back to main
+        if: github.ref_type == 'branch'
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="$(node -p "require('./package.json').version")"
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add package.json src/server.ts
+          if git diff --cached --quiet; then
+            echo 'nothing to commit (version was manually bumped)'
+          else
+            git commit -m "chore(mcp): release v$VERSION [skip mcp-publish]"
+            git push origin HEAD:main
+          fi
+          git tag "mcp/v$VERSION"
+          git push origin "mcp/v$VERSION"
