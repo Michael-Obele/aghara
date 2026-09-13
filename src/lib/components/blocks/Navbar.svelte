@@ -76,13 +76,12 @@
 	}
 
 	const productLinks = [
-		{ href: '/#how', label: 'How it works', desc: 'Write once, post on time' },
-		{ href: '/#features', label: 'Why Aghara', desc: 'One draft, six networks' },
+		{ href: '/#try', label: 'Try it', desc: 'Live demo, no account' },
 		{ href: '/#compare', label: 'Compare', desc: 'How we differ' }
 	];
 
 	const resourceLinks = [
-		{ href: '/#faq', label: 'FAQ', desc: 'Answers, upfront' },
+		{ href: '/docs/api', label: 'API reference', desc: 'Post from code' },
 		{ href: '/docs/mcp', label: 'MCP docs', desc: 'Automate with agents' }
 	];
 
@@ -100,11 +99,8 @@
 		return page.url.pathname === href;
 	}
 
-	const isWorkspaceActive = $derived(
-		isActive('/compose') || isActive('/schedule') || isActive('/accounts')
-	);
 	const isAccountActive = $derived(
-		isActive('/billing') || isActive('/tokens') || isActive('/settings')
+		isActive('/billing') || isActive('/tokens') || isActive('/settings') || isActive('/accounts')
 	);
 </script>
 
@@ -137,56 +133,22 @@
 				>
 					Dashboard
 				</a>
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger>
-						{#snippet child({ props })}
-							<button
-								{...props}
-								class={isWorkspaceActive
-									? 'flex items-center gap-1 rounded-md bg-accent px-3 py-2 font-medium text-foreground'
-									: 'flex items-center gap-1 rounded-md px-3 py-2 text-muted-foreground transition hover:bg-accent hover:text-foreground'}
-							>
-								Workspace
-								<ChevronDown class="size-3.5 opacity-60" aria-hidden="true" />
-							</button>
-						{/snippet}
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content align="start" class="w-64">
-						<DropdownMenu.Label>Workspace</DropdownMenu.Label>
-						<DropdownMenu.Group>
-							<DropdownMenu.Item
-								onclick={() => goto('/compose')}
-								class="flex items-center gap-3 py-2.5"
-							>
-								<Send class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-								<span class="flex flex-col items-start gap-0.5">
-									<span class="font-medium">Compose</span>
-									<span class="text-xs text-muted-foreground">Write a new post</span>
-								</span>
-							</DropdownMenu.Item>
-							<DropdownMenu.Item
-								onclick={() => goto('/schedule')}
-								class="flex items-center gap-3 py-2.5"
-							>
-								<CalendarClock class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-								<span class="flex flex-col items-start gap-0.5">
-									<span class="font-medium">Schedule</span>
-									<span class="text-xs text-muted-foreground">Queued and history</span>
-								</span>
-							</DropdownMenu.Item>
-							<DropdownMenu.Item
-								onclick={() => goto('/accounts')}
-								class="flex items-center gap-3 py-2.5"
-							>
-								<Link2 class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-								<span class="flex flex-col items-start gap-0.5">
-									<span class="font-medium">Accounts</span>
-									<span class="text-xs text-muted-foreground">Connected channels</span>
-								</span>
-							</DropdownMenu.Item>
-						</DropdownMenu.Group>
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
+				<a
+					href="/compose"
+					class={isActive('/compose')
+						? 'rounded-md bg-accent px-3 py-2 font-medium text-foreground'
+						: 'rounded-md px-3 py-2 text-muted-foreground transition hover:bg-accent/60 hover:text-foreground'}
+				>
+					Compose
+				</a>
+				<a
+					href="/schedule"
+					class={isActive('/schedule')
+						? 'rounded-md bg-accent px-3 py-2 font-medium text-foreground'
+						: 'rounded-md px-3 py-2 text-muted-foreground transition hover:bg-accent/60 hover:text-foreground'}
+				>
+					Schedule
+				</a>
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger>
 						{#snippet child({ props })}
@@ -212,6 +174,16 @@
 								<span class="flex flex-col items-start gap-0.5">
 									<span class="font-medium">Billing</span>
 									<span class="text-xs text-muted-foreground">Plan and usage</span>
+								</span>
+							</DropdownMenu.Item>
+							<DropdownMenu.Item
+								onclick={() => goto('/accounts')}
+								class="flex items-center gap-3 py-2.5"
+							>
+								<Link2 class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+								<span class="flex flex-col items-start gap-0.5">
+									<span class="font-medium">Accounts</span>
+									<span class="text-xs text-muted-foreground">Connected channels</span>
 								</span>
 							</DropdownMenu.Item>
 							<DropdownMenu.Item
@@ -400,6 +372,10 @@
 								<DropdownMenu.Item onclick={() => goto('/billing')}>
 									<CreditCard class="size-4" />
 									Billing
+								</DropdownMenu.Item>
+								<DropdownMenu.Item onclick={() => goto('/accounts')}>
+									<Link2 class="size-4" />
+									Accounts
 								</DropdownMenu.Item>
 								<DropdownMenu.Item onclick={() => goto('/tokens')}>
 									<KeyRound class="size-4" />
