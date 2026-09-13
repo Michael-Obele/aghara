@@ -11,7 +11,9 @@
 		listScheduledQuery,
 		publishNowCommand,
 		cancelScheduledCommand,
-		retryScheduledCommand
+		retryScheduledCommand,
+		deleteScheduledCommand,
+		clearHistoryCommand
 	} from '$lib/remote';
 	import type { ScheduledPostRow } from '$lib/remote';
 	import EditPostDialog from '$lib/components/schedule/EditPostDialog.svelte';
@@ -51,7 +53,9 @@
 		RotateCcw,
 		Pencil,
 		ListTree,
-		LoaderCircle
+		LoaderCircle,
+		Trash,
+		History
 	} from '@lucide/svelte/icons';
 	import type { Component } from 'svelte';
 
@@ -203,6 +207,51 @@
 			busy = null;
 		}
 	}
+
+	// Hard-delete a finished post (posted/failed/canceled) — gone from the DB.
+	async function removePost(id: string) {
+		busy = id;
+		const toastId = toast.loading('Deleting…');
+		try {
+			await deleteScheduledCommand({ scheduledId: id });
+			toast.success('Deleted — cleared from history.', { id: toastId });
+			scheduled.refresh();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Delete failed', { id: toastId });
+		} finally {
+			busy = null;
+		}
+	}
+
+	// Clear-all confirm state — destructive, so it needs an explicit confirm.
+	let clearing = $state(false);
+	let clearConfirm = $state(false);
+
+	async function confirmClear() {
+		clearing = true;
+		const toastId = toast.loading('Clearing history…');
+		try {
+			const result = await clearHistoryCommand();
+			toast.success(
+				result.deleted === 0
+					? 'Nothing to clear — history is empty.'
+					: `Cleared ${result.deleted} finished post${result.deleted === 1 ? '' : 's'}. Queued posts kept.`,
+				{ id: toastId }
+			);
+			clearConfirm = false;
+			scheduled.refresh();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Clear failed', { id: toastId });
+		} finally {
+			clearing = false;
+		}
+	}
+
+	const finishedCount = $derived(
+		(scheduled.current ?? []).filter(
+			(p) => p.status === 'posted' || p.status === 'failed' || p.status === 'canceled'
+		).length
+	);
 </script>
 
 <svelte:head><title>Schedule — Aghara</title></svelte:head>
@@ -211,9 +260,28 @@
 	<div class="flex flex-wrap items-end justify-between gap-4">
 		<div>
 			<h1 class="text-2xl font-semibold tracking-tight">Schedule</h1>
-			<p class="mt-1 text-muted-foreground">Every announcement, past and future.</p>
+			<p class="mt-1 text-muted-foreground">
+				Every announcement, past and future. Finished posts auto-delete after 7 days unless you keep
+				history in <a href="/settings" class="underline">Settings</a>.
+			</p>
 		</div>
-		<a href="/compose"><Button class="gap-2"><Send class="size-4" /> Compose</Button></a>
+		<div class="flex flex-wrap gap-2">
+			{#if finishedCount > 0}
+				<Button
+					variant="outline"
+					class="gap-2"
+					disabled={clearing}
+					onclick={() => (clearConfirm = true)}
+				>
+					{#if clearing}
+						<LoaderCircle class="size-4 animate-spin" /> Clearing…
+					{:else}
+						<History class="size-4" /> Clear history ({finishedCount})
+					{/if}
+				</Button>
+			{/if}
+			<a href="/compose"><Button class="gap-2"><Send class="size-4" /> Compose</Button></a>
+		</div>
 	</div>
 
 	{#if !scheduled.current}
@@ -369,6 +437,16 @@
 												>
 													<RotateCcw class="size-3.5" /> Retry
 												</Button>
+												<Button
+													size="sm"
+													variant="ghost"
+													class="gap-1.5 text-muted-foreground hover:text-destructive"
+													disabled={busy === post.scheduledId}
+													onclick={() => removePost(post.scheduledId)}
+													aria-label="Delete this post"
+												>
+													<Trash class="size-3.5" />
+												</Button>
 											{:else if post.status === 'posted' && post.postedUrl}
 												<a
 													href={post.postedUrl}
@@ -378,6 +456,27 @@
 												>
 													<ExternalLink class="size-3.5" /> View
 												</a>
+												<Button
+													size="sm"
+													variant="ghost"
+													class="gap-1.5 text-muted-foreground hover:text-destructive"
+													disabled={busy === post.scheduledId}
+													onclick={() => removePost(post.scheduledId)}
+													aria-label="Delete this post"
+												>
+													<Trash class="size-3.5" />
+												</Button>
+											{:else if post.status === 'posted' || post.status === 'canceled'}
+												<Button
+													size="sm"
+													variant="ghost"
+													class="gap-1.5 text-muted-foreground hover:text-destructive"
+													disabled={busy === post.scheduledId}
+													onclick={() => removePost(post.scheduledId)}
+													aria-label="Delete this post"
+												>
+													<Trash class="size-3.5" />
+												</Button>
 											{/if}
 										</div>
 									</TableCell>
@@ -536,4 +635,46 @@
 			/>
 		{/key}
 	{/if}
+
+	<Dialog
+		open={clearConfirm}
+		onOpenChange={(o) => {
+			if (!o) clearConfirm = false;
+		}}
+	>
+		<DialogContent class="sm:max-w-md">
+			<DialogHeader>
+				<DialogTitle class="flex items-center gap-2">
+					<Trash class="size-5" /> Clear history?
+				</DialogTitle>
+				<DialogDescription>
+					This hard-deletes all {finishedCount} finished post{finishedCount === 1 ? '' : 's'}
+					(posted, failed, canceled) from the database. Queued posts are kept. This cannot be undone.
+				</DialogDescription>
+			</DialogHeader>
+			<DialogFooter>
+				<Button
+					type="button"
+					variant="outline"
+					onclick={() => (clearConfirm = false)}
+					disabled={clearing}
+				>
+					Keep them
+				</Button>
+				<Button
+					type="button"
+					variant="destructive"
+					class="gap-1.5"
+					disabled={clearing}
+					onclick={confirmClear}
+				>
+					{#if clearing}
+						<LoaderCircle class="size-3.5 animate-spin" /> Clearing…
+					{:else}
+						<Trash class="size-3.5" /> Delete all finished
+					{/if}
+				</Button>
+			</DialogFooter>
+		</DialogContent>
+	</Dialog>
 </div>

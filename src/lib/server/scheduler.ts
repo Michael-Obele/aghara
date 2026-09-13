@@ -1,6 +1,7 @@
 // Minutely scheduler — polls due scheduled_posts and publishes them.
 // Started once from hooks.server.ts (guarded against double-start).
 import { publishDue } from './services/publisher';
+import { pruneHistory } from './services/retention';
 import { keyFingerprint } from './services/crypto';
 
 let started = false;
@@ -21,6 +22,9 @@ export function startScheduler(): void {
 			if (processed > 0) {
 				console.log(`[aghara] scheduler: processed ${processed} due post(s)`);
 			}
+			// Auto-delete: prune finished rows older than 7d for users who
+			// haven't opted into retainHistory. Same tick, no new cron.
+			await pruneHistory();
 		} catch (err) {
 			// Bun.cron surfaces an unhandled rejection as process exit (code 1)
 			// if left uncaught, so keep the try/catch around the whole body.

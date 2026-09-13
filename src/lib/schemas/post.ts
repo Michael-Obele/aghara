@@ -23,6 +23,7 @@ export const PublishNowSchema = v.object({
 	scheduledId: v.pipe(v.string(), v.uuid())
 });
 export const CancelSchema = PublishNowSchema;
+export const DeleteScheduledSchema = PublishNowSchema;
 
 export const RetrySchema = v.object({
 	scheduledId: v.pipe(v.string(), v.uuid()),
@@ -43,3 +44,4 @@ export type CreatePostInput = v.InferOutput<typeof CreatePostSchema>;
 export type TargetInput = v.InferOutput<typeof TargetSchema>;
 export type RetryInput = v.InferOutput<typeof RetrySchema>;
 export type UpdatePostInput = v.InferOutput<typeof UpdatePostSchema>;
+export type DeleteScheduledInput = v.InferOutput<typeof DeleteScheduledSchema>;

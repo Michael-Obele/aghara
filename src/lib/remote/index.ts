@@ -2,6 +2,7 @@
 export * from './auth.remote';
 export * from './accounts.remote';
 export * from './posts.remote';
+export * from './retention.remote';
 export * from './billing.remote';
 export * from './tokens.remote';
 export * from './platforms.remote';

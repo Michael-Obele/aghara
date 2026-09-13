@@ -4,6 +4,7 @@ import {
 	text,
 	timestamp,
 	integer,
+	boolean,
 	jsonb,
 	index,
 	uniqueIndex
@@ -78,6 +79,17 @@ export const scheduledPosts = pgTable(
 	},
 	(t) => [index('ix_due').on(t.status, t.runAt)]
 );
+
+// user_settings — one row per user. Auto-delete is ON by default: finished
+// posts (posted/failed/canceled) are pruned 7 days after they settle, keeping
+// the DB lean. Users who want a permanent archive flip retainHistory on.
+export const userSettings = pgTable('user_settings', {
+	userId: text('user_id')
+		.primaryKey()
+		.references(() => user.id, { onDelete: 'cascade' }),
+	retainHistory: boolean('retain_history').notNull().default(false),
+	updatedAt: timestamp('updated_at').defaultNow()
+});
 
 // subscriptions — Paystack webhook is source of truth; webhook upserts here.
 export const subscriptions = pgTable('subscriptions', {

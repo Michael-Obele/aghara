@@ -90,7 +90,11 @@ const PostsInputSchema = v.variant('action', [
 		body: v.pipe(v.string(), v.minLength(1), v.maxLength(20000)),
 		segments: v.optional(SegmentsSchema, []),
 		runAt: v.optional(v.pipe(v.string(), v.isoTimestamp()))
-	})
+	}),
+	v.object({ action: v.literal('delete'), scheduledId: v.pipe(v.string(), v.uuid()) }),
+	v.object({ action: v.literal('clear_history') }),
+	v.object({ action: v.literal('get_retention') }),
+	v.object({ action: v.literal('set_retention'), retainHistory: v.boolean() })
 ]);
 
 const CONNECT_FIELDS = [
@@ -164,7 +168,7 @@ export function registerTools(server: McpServer<any, any>, apiFn: ApiFn = api): 
 		{
 			name: 'aghara_posts',
 			description:
-				'Manage scheduled posts. Actions: list — list scheduled posts (optional status filter); create — schedule a new post with targets (body ≤20000, optional IANA timezone; call aghara_platforms FIRST to check the per-channel limit — over-limit text auto-splits into a thread/series on Bluesky/Mastodon/Threads/Telegram/Discord but is REJECTED on LinkedIn; pass explicit segments[] for thread parts, each ≤2000); publish_now — publish a queued post immediately; cancel — cancel a queued post; retry — re-queue a failed post at a new ISO time (runAt); update — edit a post that has not been sent yet (body ≤20000, optional segments[]; optional runAt ISO to reschedule — queued posts only).',
+				'Manage scheduled posts. Actions: list — list scheduled posts (optional status filter); create — schedule a new post with targets (body ≤20000, optional IANA timezone; call aghara_platforms FIRST to check the per-channel limit — over-limit text auto-splits into a thread/series on Bluesky/Mastodon/Threads/Telegram/Discord but is REJECTED on LinkedIn; pass explicit segments[] for thread parts, each ≤2000); publish_now — publish a queued post immediately; cancel — cancel a queued post; retry — re-queue a failed post at a new ISO time (runAt); update — edit a post that has not been sent yet (body ≤20000, optional segments[]; optional runAt ISO to reschedule — queued posts only); delete — hard-delete a finished post (posted/failed/canceled only); clear_history — hard-delete ALL finished posts (queued untouched); get_retention — read the retain-history toggle (default off: finished posts auto-delete after 7 days); set_retention — set retainHistory true/false to keep history forever or auto-delete.',
 			schema: PostsInputSchema
 		},
 		async (input) => {
@@ -217,6 +221,19 @@ export function registerTools(server: McpServer<any, any>, apiFn: ApiFn = api): 
 							body: payload
 						});
 					}
+					case 'delete':
+						return await json(client, `/api/v1/scheduled/${input.scheduledId}?hard=true`, {
+							method: 'DELETE'
+						});
+					case 'clear_history':
+						return await json(client, '/api/v1/posts/history', { method: 'DELETE' });
+					case 'get_retention':
+						return await json(client, '/api/v1/settings/retention');
+					case 'set_retention':
+						return await json(client, '/api/v1/settings/retention', {
+							method: 'PUT',
+							body: { retainHistory: input.retainHistory }
+						});
 				}
 			} catch (err) {
 				return tool.error(toMessage(err));

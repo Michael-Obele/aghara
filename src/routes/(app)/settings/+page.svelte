@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { toast } from 'svelte-sonner';
 	import { page } from '$app/state';
 	import { invalidate } from '$app/navigation';
 	import { Switch } from '$lib/components/ui/switch/index.js';
@@ -9,12 +10,15 @@
 		CardHeader,
 		CardTitle
 	} from '$lib/components/ui/card/index.js';
-	import { Clock } from '@lucide/svelte/icons';
+	import { Clock, History } from '@lucide/svelte/icons';
 	import { setTimeFormatCookie, type TimeFormat } from '$lib/time';
+	import { retentionQuery, setRetentionCommand } from '$lib/remote';
 
 	const timeFormat = $derived<TimeFormat>(page.data.timeFormat === '24h' ? '24h' : '12h');
+	const retention = retentionQuery();
 
 	let switching = $state(false);
+	let savingRetention = $state(false);
 
 	async function toggle12h(checked: boolean) {
 		if (switching) return;
@@ -24,6 +28,26 @@
 			await invalidate('app:time-format');
 		} finally {
 			switching = false;
+		}
+	}
+
+	async function toggleRetain(checked: boolean) {
+		if (savingRetention) return;
+		savingRetention = true;
+		const toastId = toast.loading(checked ? 'Keeping history…' : 'Auto-delete on…');
+		try {
+			await setRetentionCommand({ retainHistory: checked });
+			toast.success(
+				checked
+					? 'History kept — finished posts stay forever.'
+					: 'Auto-delete on — finished posts clear after 7 days.',
+				{ id: toastId }
+			);
+			retention.refresh();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Could not save', { id: toastId });
+		} finally {
+			savingRetention = false;
 		}
 	}
 </script>
@@ -58,6 +82,35 @@
 					disabled={switching}
 					onCheckedChange={(c) => toggle12h(c)}
 					aria-label="Use 12-hour time"
+				/>
+			</div>
+		</CardContent>
+	</Card>
+	<Card>
+		<CardHeader>
+			<CardTitle class="flex items-center gap-2">
+				<History class="size-4" /> Post history
+			</CardTitle>
+			<CardDescription>
+				Finished posts (posted, failed, canceled) auto-delete after 7 days to keep things lean. Turn
+				this on to keep them forever instead.
+			</CardDescription>
+		</CardHeader>
+		<CardContent>
+			<div class="flex items-center justify-between gap-4">
+				<div class="space-y-1">
+					<p class="text-sm font-medium">Keep history forever</p>
+					<p class="text-sm text-muted-foreground">
+						{retention.current?.retainHistory
+							? 'Finished posts stay until you delete them'
+							: 'Finished posts auto-delete after 7 days'}
+					</p>
+				</div>
+				<Switch
+					checked={retention.current?.retainHistory ?? false}
+					disabled={savingRetention || !retention.current}
+					onCheckedChange={(c) => toggleRetain(c)}
+					aria-label="Keep post history forever"
 				/>
 			</div>
 		</CardContent>
