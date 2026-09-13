@@ -1,14 +1,34 @@
 # Aghara MCP
 
-A standalone **TMCP** (TypeScript MCP) server that remote-controls [Aghara](https://aghara.svelte-apps.me) — the social scheduler — over its REST API. Runs on **Fly.io** (Bun) and **Cloudflare Workers** from one codebase.
+[![npm version](https://img.shields.io/npm/v/aghara-mcp)](https://www.npmjs.com/package/aghara-mcp) [![npm downloads](https://img.shields.io/npm/dm/aghara-mcp)](https://www.npmjs.com/package/aghara-mcp) [![GitHub stars](https://img.shields.io/github/stars/Michael-Obele/aghara?style=flat)](https://github.com/Michael-Obele/aghara)
+[![Bun](https://img.shields.io/badge/Bun-000?logo=bun&logoColor=white)](https://bun.sh) [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org) [![TMCP](https://img.shields.io/badge/TMCP-7c3aed)](https://github.com/tmcp-js/tmcp) [![Valibot](https://img.shields.io/badge/Valibot-000000)](https://valibot.dev)
+[![Streamable HTTP + STDIO](https://img.shields.io/badge/Transport-HTTP_+_STDIO-0ea5e9)](https://modelcontextprotocol.io) [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-F38020?logo=cloudflare&logoColor=white)](./wrangler.jsonc) [![Fly.io](https://img.shields.io/badge/Fly.io-7B3FF2?logo=flydotio&logoColor=white)](./fly.toml)
 
-## Tools (3 — less than 7, resource-oriented)
+**Recommended:** `bunx aghara-mcp` (STDIO, no hosting) · **Self-host:** `/mcp` (HTTP) · **Needs:** `AGHARA_BASE_URL` + `AGHARA_API_TOKEN`
 
-| Tool              | Actions                                            |
-| ----------------- | -------------------------------------------------- |
-| `aghara_health`   | — (public status, no token needed)                 |
-| `aghara_accounts` | `list`, `connect`, `disconnect`                    |
-| `aghara_posts`    | `list`, `create`, `publish_now`, `cancel`, `retry` |
+A standalone **TMCP** (TypeScript MCP) server that remote-controls [Aghara](https://aghara.svelte-apps.me) — the social scheduler — over its REST API. Start locally with zero hosting, or self-host on **Fly.io** (Bun) or **Cloudflare Workers** from one codebase. Schedule, publish, and manage posts from any MCP client — no dashboard clicks.
+
+## Why this exists
+
+- **Post from your agent** — schedule and publish without opening the dashboard.
+- **Thin by design** — 4 tools forward to `/api/v1/*`; no logic to drift.
+- **Start local** — STDIO for VS Code, Claude Desktop, Codex CLI. No server to run.
+- **Self-host if remote** — HTTP for hosted clients, Workers or Fly for deploy.
+
+## How it works
+
+1. **Create a token** in Aghara UI under API tokens.
+2. **Run locally** via `bunx aghara-mcp` (STDIO, recommended) — no hosting.
+3. **Call 4 tools** — `aghara_health`, `aghara_accounts`, `aghara_posts`, `aghara_platforms` — done. Self-host HTTP only for remote access.
+
+## Tools (4 — resource-oriented)
+
+| Tool               | Actions                                            |
+| ------------------ | -------------------------------------------------- |
+| `aghara_health`    | — (public status, no token needed)                 |
+| `aghara_accounts`  | `list`, `connect`, `disconnect`                    |
+| `aghara_posts`     | `list`, `create`, `publish_now`, `cancel`, `retry` |
+| `aghara_platforms` | — (limits matrix, call before `create`)            |
 
 Every tool forwards to the Aghara REST API (`/api/v1/*`) with the configured Bearer token. No business logic lives here.
 
@@ -22,7 +42,34 @@ Every tool forwards to the Aghara REST API (`/api/v1/*`) with the configured Bea
 | `AGHARA_API_TOKEN` | API token from the Aghara UI (API tokens page), forwarded as Bearer                     |
 | `PORT`             | HTTP port (default `8000`)                                                              |
 
-## Run locally
+## Recommended: install from npm (local editors, no hosting)
+
+```bash
+bunx aghara-mcp   # STDIO-only by default — set AGHARA_BASE_URL + AGHARA_API_TOKEN in env
+```
+
+Paste into your MCP client config (Claude Desktop, VS Code, Codex CLI):
+
+```json
+{
+	"mcpServers": {
+		"aghara": {
+			"command": "bunx",
+			"args": ["aghara-mcp"],
+			"env": {
+				"AGHARA_BASE_URL": "https://aghara.svelte-apps.me",
+				"AGHARA_API_TOKEN": "<paste-token-from-/tokens>"
+			}
+		}
+	}
+}
+```
+
+- Prod: `AGHARA_BASE_URL=https://aghara.svelte-apps.me` · Dev: `http://localhost:5173`
+- Pass `--http` (or set `PORT`) only for local HTTP testing.
+- Publish: `bun publish` from `mcp/` (runs `tsc` first via `prepublishOnly`).
+
+## Develop locally
 
 ```bash
 bun install
@@ -34,15 +81,11 @@ bun run dev
 - Health: `http://localhost:8000/health`
 - STDIO transport also starts in dev for local agent use.
 
-## Install from npm (local editors, no hosting)
+## Self-host HTTP (only if remote access is required)
 
-```bash
-bunx aghara-mcp   # STDIO mode — set AGHARA_BASE_URL + AGHARA_API_TOKEN in env
-```
+No public HTTP endpoint is hosted. Deploy `mcp/` yourself, then point clients at your `/mcp` URL.
 
-Publish: `bun publish` from `mcp/` (runs `tsc` first via `prepublishOnly`). STDIO-only by default; pass `--http` (or set `PORT`) to also serve Streamable HTTP locally.
-
-## Deploy to Fly.io (spin-down on inactivity)
+### Deploy to Fly.io (spin-down on inactivity)
 
 ```bash
 cd mcp
@@ -67,7 +110,7 @@ bun run deploy
 
 ## Connect from a client
 
-Point your MCP client at your deployed `/mcp` URL (Streamable HTTP). No auth on the MCP endpoint itself — the server forwards your `AGHARA_API_TOKEN` as `Authorization: Bearer <token>` on every REST call. See `/docs/mcp` in the app for per-client snippets (VS Code, Claude Desktop, Codex CLI).
+Start with npm (STDIO) — no URL needed. For self-hosted HTTP only: point your MCP client at your deployed `/mcp` URL (Streamable HTTP). No auth on the MCP endpoint itself — the server forwards your `AGHARA_API_TOKEN` as `Authorization: Bearer <token>` on every REST call. See `/docs/mcp` in the app for per-client snippets (npm, VS Code, Claude Desktop, Codex CLI).
 
 ## Check
 
