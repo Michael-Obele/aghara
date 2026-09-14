@@ -127,7 +127,7 @@
 				<Megaphone class="mx-auto size-8 text-muted-foreground" />
 				<h3 class="mt-4 font-semibold">Start your first announcement</h3>
 				<p class="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-					Connect a network like Bluesky — it takes 30 seconds with an app password.
+					Bluesky takes 30 seconds with an app password.
 				</p>
 				<a href="/accounts" class="mt-6 inline-block">
 					<Button class="gap-2">Connect your first network <ArrowRight class="size-4" /></Button>
@@ -138,7 +138,7 @@
 				<Send class="mx-auto size-8 text-muted-foreground" />
 				<h3 class="mt-4 font-semibold">Nothing scheduled yet</h3>
 				<p class="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-					Write once, pick a time, and Aghara announces for you.
+					Write once, pick a time, done.
 				</p>
 				<a href="/compose" class="mt-6 inline-block">
 					<Button class="gap-2">Schedule your first post <ArrowRight class="size-4" /></Button>

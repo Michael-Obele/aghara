@@ -46,9 +46,8 @@
 			Schedule social posts from your agent. No dashboard clicks.
 		</h1>
 		<p class="mt-2 text-muted-foreground">
-			The Aghara MCP server is a thin forwarder over the REST API — no business logic lives in it.
-			Start with the npm version over STDIO. Self-host HTTP only if you need remote access. Use a
-			token from <a href="/tokens" class="underline">API tokens</a>.
+			Thin forwarder over REST, no logic inside. Start with npm over STDIO. Self-host HTTP only for
+			remote access. Grab a token from <a href="/tokens" class="underline">API tokens</a>.
 		</p>
 		<div class="mt-4 flex flex-wrap gap-2">
 			<Button href="/tokens">Create API token</Button>

@@ -30,7 +30,7 @@
 			</span>
 			<h1 class="mt-4 text-2xl font-semibold tracking-tight">Welcome back</h1>
 			<p class="mt-2 text-sm text-muted-foreground">
-				Your scheduled posts are waiting — sign in to keep them on time.
+				Your queue is waiting. Sign in to keep it on time.
 			</p>
 		</div>
 		<Card>

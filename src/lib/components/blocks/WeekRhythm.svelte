@@ -80,7 +80,6 @@
 	</div>
 
 	<p class="mt-5 text-xs leading-relaxed text-muted-foreground">
-		No streaks to keep, no dashboard to babysit. Write when you think of it, schedule it, and the
-		week fills itself in.
+		No streaks, no babysitting. Write when you think of it, schedule it.
 	</p>
 </div>

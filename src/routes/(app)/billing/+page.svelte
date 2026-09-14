@@ -73,8 +73,8 @@
 		</h1>
 		<p class="mt-1 text-muted-foreground">
 			{currentPlan === null
-				? 'A paid plan is required to use Aghara — pick one to get started.'
-				: 'Payments handled securely by Paystack — cancel anytime, no lock-in.'}
+				? 'Pick a plan to start posting.'
+				: 'Paystack handles payment. Cancel anytime.'}
 		</p>
 	</div>
 
@@ -89,7 +89,7 @@
 				<div>
 					<p class="font-medium">Self-host mode</p>
 					<p class="text-sm text-muted-foreground">
-						Billing is disabled — unlimited accounts, posts, and API tokens. This instance is yours.
+						Billing off. Unlimited accounts, posts, tokens. This instance is yours.
 					</p>
 				</div>
 			</CardContent>

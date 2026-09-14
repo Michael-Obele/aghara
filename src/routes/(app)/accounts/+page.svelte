@@ -73,9 +73,7 @@
 <div class="space-y-8">
 	<div>
 		<h1 class="text-2xl font-semibold tracking-tight">Accounts</h1>
-		<p class="mt-1 text-muted-foreground">
-			Connect the networks you use — unconnected ones stay hidden.
-		</p>
+		<p class="mt-1 text-muted-foreground">Connect what you use. The rest stays hidden.</p>
 	</div>
 
 	<!-- Connected -->

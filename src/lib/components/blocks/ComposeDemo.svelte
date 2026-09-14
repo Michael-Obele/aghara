@@ -140,8 +140,8 @@
 			</span>
 			<h3 class="mt-4 font-semibold">Nice. That is exactly how it works.</h3>
 			<p class="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-				One post, out to {networkLabel} at {formattedTime}. Create your account, pick a plan, and
-				you can do this for real. Same box, same feel.
+				One post to {networkLabel} at {formattedTime}. Create an account, pick a plan, do this for
+				real.
 			</p>
 			<div class="mt-6 flex flex-wrap items-center justify-center gap-3">
 				<a href="/register">

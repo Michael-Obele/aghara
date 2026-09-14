@@ -261,8 +261,8 @@
 		<div>
 			<h1 class="text-2xl font-semibold tracking-tight">Schedule</h1>
 			<p class="mt-1 text-muted-foreground">
-				Every announcement, past and future. Finished posts auto-delete after 7 days unless you keep
-				history in <a href="/settings" class="underline">Settings</a>.
+				Past and future in one place. Finished posts clear after 7 days unless you keep them in
+				<a href="/settings" class="underline">Settings</a>.
 			</p>
 		</div>
 		<div class="flex flex-wrap gap-2">
@@ -289,7 +289,7 @@
 			<CalendarClock class="mx-auto size-8 text-muted-foreground" />
 			<h3 class="mt-4 font-semibold">No posts yet</h3>
 			<p class="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-				Schedule your first post — it takes about 30 seconds.
+				Schedule your first post. Takes 30 seconds.
 			</p>
 			<a href="/compose" class="mt-6 inline-block">
 				<Button class="gap-2"><Send class="size-4" /> Schedule your first post</Button>

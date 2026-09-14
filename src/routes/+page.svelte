@@ -41,23 +41,23 @@
 	const faqs = [
 		{
 			q: 'Which networks can I post to?',
-			a: 'Bluesky is home base, plus Telegram, Discord, Mastodon, LinkedIn, and Threads if you want them. Only hook up what you actually use — the rest stays out of your way when you write.'
+			a: 'Bluesky is home base, plus Telegram, Discord, Mastodon, LinkedIn, and Threads if you want them. Only hook up what you use. The rest stays out of your way.'
 		},
 		{
 			q: 'How does scheduling actually work?',
-			a: 'Aghara checks your queue every minute and posts whatever is due. If a network hiccups, it retries up to 3 times, then drops you the live link. No babysitting.'
+			a: 'Aghara checks your queue every minute and posts what is due. If a post fails, it retries 3 times, then leaves the live link. No babysitting.'
 		},
 		{
 			q: 'Can I self-host instead?',
-			a: 'Yep. Same app, same features. One service plus one Postgres, set SELF_HOST=true, done. Most folks start hosted though, because there is nothing to maintain.'
+			a: 'Yep. Same app. One service plus one Postgres, set SELF_HOST=true, done. Most folks start hosted. Nothing to maintain.'
 		},
 		{
 			q: 'How are my logins and tokens handled?',
-			a: 'They stay encrypted on your account with AES-256-GCM. We never log them, and they never show up in the API. Only you can use them to post.'
+			a: 'They stay encrypted with AES-256-GCM. We never log them. They never show in the API.'
 		},
 		{
 			q: 'Can I automate it with code or agents?',
-			a: 'Yep. The REST API mirrors the app. List accounts, queue posts, publish now, cancel. Bearer-token auth, so scripts and agents slot right in.'
+			a: 'Yep. The REST API does what the app does. List accounts, queue posts, publish now, cancel. One bearer token.'
 		},
 		{
 			q: 'What does hosted cost?',
@@ -173,9 +173,8 @@
 				class="hero-rise mt-6 max-w-lg text-lg leading-relaxed text-pretty text-muted-foreground"
 				style="animation-delay:160ms"
 			>
-				In Ibani-Ijaw villages, the Aghara carried one message to every square so nobody missed it.
-				This Aghara does the same for your posts. Write it once, and it is announced on Bluesky,
-				Telegram, Discord, Mastodon, LinkedIn, and Threads, right on time.
+				In Ibani-Ijaw villages, the Aghara took one message to every square. This one takes yours to
+				Bluesky, Telegram, Discord, Mastodon, LinkedIn, and Threads, on time.
 			</p>
 			<div class="hero-rise mt-10 flex flex-wrap gap-4" style="animation-delay:240ms">
 				<a href="/register">
@@ -227,13 +226,10 @@
 						One message, <span class="text-primary">every square.</span>
 					</h2>
 					<p class="mt-5 max-w-md leading-relaxed text-muted-foreground">
-						Aghara (ah-GAH-rah) is the town crier of the Ibani-Ijaw people. The trusted voice who
-						carried the day's news to every corner of the village, so nobody was left out.
+						Aghara (ah-GAH-rah) was the town crier. One message, every square, nobody missed out.
 					</p>
 					<p class="mt-4 max-w-md leading-relaxed text-muted-foreground">
-						The internet has squares too. Six of them, scattered across apps that never talk to each
-						other. Posting everywhere used to mean pasting the same words into six tabs and hoping
-						you got the timing right. Aghara is the crier who does the rounds for you.
+						The internet has six squares too. Write once and Aghara does the rounds for you.
 					</p>
 					<div class="mt-8 flex flex-wrap gap-4">
 						<a href="/register">
@@ -262,8 +258,8 @@
 						You read step 1. <span class="text-primary">Now try it yourself.</span>
 					</h2>
 					<p class="mt-5 max-w-md leading-relaxed text-muted-foreground">
-						This is the real compose box. Same feel as the app. Write something, pick your squares,
-						set a time. No account and nothing saved.
+						This is the real compose box. Write something, pick your squares, set a time. No
+						account, nothing saved.
 					</p>
 					<ul class="mt-8 space-y-3 text-sm text-muted-foreground">
 						<li class="flex items-center gap-2.5">
@@ -302,13 +298,12 @@
 						Stay visible <span class="text-primary">without living online.</span>
 					</h2>
 					<p class="mt-5 max-w-md leading-relaxed text-muted-foreground">
-						The crier never performed. They just showed up, reliably, where people already were.
-						That is what a scheduled queue gives you. A steady presence built in spare minutes, not
-						a second job of opening apps all day.
+						The crier never performed. They just showed up where people already were. That is what a
+						queue gives you. Presence built in spare minutes, not a second job.
 					</p>
 					<p class="mt-4 max-w-md leading-relaxed text-muted-foreground">
-						Write five posts on Sunday night. Wake up to a week where every square heard from you,
-						while you do the actual work.
+						Write five posts on Sunday night. Every square hears from you all week while you do the
+						real work.
 					</p>
 				</div>
 			</Reveal>
@@ -406,8 +401,7 @@
 					</div>
 					<h3 class="mt-4 font-semibold">09:00 means 09:00 where you are</h3>
 					<p class="mt-2 text-sm text-muted-foreground">
-						Your timezone is saved when you write. Not sent yet? Edit the words or move the time.
-						Every copy updates together.
+						Your timezone saves when you write. Not sent yet? Edit the words or move the time.
 					</p>
 				</div>
 			</Reveal>
@@ -426,9 +420,8 @@
 					</div>
 					<h3 class="mt-4 font-semibold">Checked every minute, posted everywhere</h3>
 					<p class="mt-2 text-sm text-muted-foreground">
-						Aghara checks your queue each minute and posts what is due. Bluesky, Mastodon, and
-						Threads get real reply threads. Telegram and Discord get each part in order. A hiccup
-						gets up to 3 retries.
+						Aghara checks your queue each minute and posts what is due. Long posts become threads
+						where they can, parts in order elsewhere. A hiccup gets 3 retries.
 					</p>
 				</div>
 			</Reveal>
@@ -446,8 +439,8 @@
 					</div>
 					<h3 class="mt-4 font-semibold">Live links waiting when you return</h3>
 					<p class="mt-2 text-sm text-muted-foreground">
-						Posted, failed, or canceled. The schedule page shows status, attempts, and links for
-						each part. Failed? Retry at a new time. Automating? The REST API and MCP do the same.
+						The schedule page shows status, attempts, and links for each part. Failed? Pick a new
+						time and retry.
 					</p>
 				</div>
 			</Reveal>
@@ -465,7 +458,7 @@
 			<h2
 				class="mx-auto mt-3 max-w-2xl text-center text-3xl font-semibold tracking-tight text-balance sm:text-4xl"
 			>
-				Write once. <span class="text-primary">It fits every network.</span>
+				Write once. <span class="text-primary">Heard everywhere.</span>
 			</h2>
 			<p class="mx-auto mt-4 max-w-xl text-center leading-relaxed text-muted-foreground">
 				No dashboard to live in. Hand over the message and get on with your day.
@@ -480,7 +473,7 @@
 					</div>
 					<p class="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
 						Bluesky, Mastodon, and Threads get real reply threads. Telegram and Discord get each
-						part in order. LinkedIn gets one post. Write long. Aghara fits it to each network.
+						part in order. LinkedIn gets one post. Write long, it still lands.
 					</p>
 					<div aria-hidden="true" class="mt-6 max-w-md">
 						<div class="flex gap-3">
@@ -522,8 +515,7 @@
 						<h3 class="font-semibold text-foreground">Your time, your timezone</h3>
 					</div>
 					<p class="mt-2 text-sm leading-relaxed text-muted-foreground">
-						Your timezone is saved when you write. 09:00 in Nairobi stays 09:00 in Nairobi, even if
-						you travel.
+						09:00 in Nairobi stays 09:00, even if you travel.
 					</p>
 					<p
 						class="mt-5 inline-flex items-center gap-1.5 rounded-full border bg-background px-3 py-1.5 text-xs font-medium"
@@ -539,8 +531,7 @@
 						<h3 class="font-semibold text-foreground">Your keys stay yours</h3>
 					</div>
 					<p class="mt-2 text-sm leading-relaxed text-muted-foreground">
-						Logins and tokens stay encrypted. They are never logged and never appear in the API.
-						They are only used to post for you.
+						Logins and tokens stay encrypted. Never logged, never in the API.
 					</p>
 				</div>
 			</Reveal>
@@ -551,8 +542,8 @@
 						<h3 class="font-semibold text-foreground">If it fails, you can retry</h3>
 					</div>
 					<p class="mt-2 text-sm leading-relaxed text-muted-foreground">
-						A hiccup gets up to 3 retries. The schedule page shows status, attempts, and live links.
-						Failed posts retry at a new time.
+						A hiccup gets 3 retries. The schedule page shows status, attempts, and links. Failed?
+						Pick a new time.
 					</p>
 				</div>
 			</Reveal>
@@ -626,11 +617,9 @@
 		</Reveal>
 		<Reveal delay={160}>
 			<p class="mx-auto mt-6 max-w-2xl text-center text-xs text-muted-foreground">
-				Buffer Essentials is $5/mo per channel annual. 6 channels is about $30/mo. Typefully Creator
-				is about $12.50/mo per social set annual. 6 sets is about $75/mo. Fedica Publish is $10/mo
-				annual (100 queued) and Grow is $19/mo annual. Hootsuite Standard is $99/user/mo annual.
-				Aghara Creator is $4/mo flat annual. 5 accounts, 5,000 posts. Pro is $6/mo flat. Unlimited
-				accounts, unlimited posts. Prices move, so check their pages before you decide.
+				Buffer $5/mo per channel ($30 for 6). Typefully ~$12.50 per set (~$75 for 6). Fedica $10
+				(100 queued) / $19 Grow. Hootsuite $99/user. Aghara Creator $4 flat (5 accounts, 5,000
+				posts). Pro $6 flat unlimited. Annual, Sept 2026. Prices move, check before you decide.
 			</p>
 		</Reveal>
 	</div>
@@ -647,8 +636,7 @@
 				One flat price. <span class="text-primary">No channel math.</span>
 			</h2>
 			<p class="mx-auto mt-3 max-w-xl text-center text-muted-foreground">
-				Pick monthly or annual. Annual is cheaper. Monthly just costs you more for the same posts.
-				Cancel anytime.
+				Monthly or annual. Annual is cheaper for the same posts. Cancel anytime.
 			</p>
 		</Reveal>
 
@@ -761,8 +749,7 @@
 		<!-- Footnote, not a third path: hosted is the default -->
 		<Reveal>
 			<p class="mx-auto mt-8 max-w-xl text-center text-xs text-muted-foreground">
-				Prefer to run it yourself? Self-hosting is available. Same app, you handle the server. Most
-				folks start hosted.
+				Want to self-host? Same app, you run the server. Most start hosted.
 			</p>
 		</Reveal>
 	</div>
@@ -777,7 +764,7 @@
 				Quick answers, <span class="text-primary">no sales talk.</span>
 			</h2>
 			<p class="mx-auto mt-3 max-w-xl text-center text-muted-foreground">
-				The short version of everything people ask before they hit register.
+				What people ask before they register.
 			</p>
 		</Reveal>
 		<Reveal delay={120}>
@@ -810,8 +797,7 @@
 				Set up once, <span class="text-primary">post for months.</span>
 			</h2>
 			<p class="mx-auto mt-3 max-w-xl text-pretty text-muted-foreground">
-				Create your account, pick a plan, hook up Bluesky, schedule your first post. Paid plan
-				required to post. Cancel anytime.
+				Create account, pick a plan, hook up Bluesky, schedule. Paid plan to post. Cancel anytime.
 			</p>
 			<div class="mt-8 flex flex-wrap items-center justify-center gap-4">
 				<a href="/register">

@@ -57,8 +57,7 @@
 					Your schedule is 30 seconds away.
 				</h1>
 				<p class="mt-3 text-muted-foreground">
-					Create your account, connect Bluesky, and schedule your first post — before your coffee
-					cools.
+					Create account, connect Bluesky, schedule your first post. Before your coffee cools.
 				</p>
 				<ul class="mt-8 space-y-3 text-sm">
 					<li class="flex gap-2 text-muted-foreground">

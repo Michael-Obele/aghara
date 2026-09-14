@@ -82,8 +82,8 @@
 	<div>
 		<h1 class="text-2xl font-semibold tracking-tight">API tokens</h1>
 		<p class="mt-1 text-muted-foreground">
-			Bearer tokens for machines and agents — each shown exactly once. Use them with the
-			<a href="/docs/mcp" class="underline">MCP server</a> or the REST API directly.
+			Tokens for machines and agents. Shown once. Works with the
+			<a href="/docs/mcp" class="underline">MCP server</a> or REST directly.
 		</p>
 	</div>
 
@@ -128,9 +128,7 @@
 		<div class="rounded-xl border border-dashed p-8 text-center">
 			<KeyRound class="mx-auto size-7 text-muted-foreground" />
 			<p class="mt-3 text-sm font-medium">No tokens yet</p>
-			<p class="mt-1 text-sm text-muted-foreground">
-				Create one above to let machines and agents control your schedule.
-			</p>
+			<p class="mt-1 text-sm text-muted-foreground">Create one above for machines and agents.</p>
 		</div>
 	{:else}
 		<div class="space-y-3">

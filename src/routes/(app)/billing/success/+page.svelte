@@ -12,8 +12,7 @@
 	</span>
 	<h1 class="mt-6 text-2xl font-semibold tracking-tight">You're all set</h1>
 	<p class="mt-3 text-muted-foreground">
-		Your plan is being activated. It can take a minute or two for the webhook to arrive — refresh
-		this page shortly to see your updated plan.
+		Plan activating. Takes a minute or two. Refresh shortly to see it.
 	</p>
 	<a href="/dashboard" class="mt-8">
 		<Button class="gap-2">Back to dashboard <ArrowRight class="size-4" /></Button>

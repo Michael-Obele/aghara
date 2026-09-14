@@ -9,19 +9,19 @@
 			icon: Coffee,
 			time: '08:55',
 			title: 'You, with coffee',
-			body: 'One thought worth sharing. You write it once in the compose box in the demo just below, then pick Tuesday 09:00.'
+			body: 'One thought. Write it once below, pick Tuesday 09:00.'
 		},
 		{
 			icon: CalendarClock,
 			time: '09:00',
 			title: 'Aghara, on the minute',
-			body: 'The queue is checked, your post is due, and it goes out to every network you picked. If one hiccups, it retries. You never see the hiccup.'
+			body: 'It goes out to every network you picked. If one hiccups, it retries. You never see it.'
 		},
 		{
 			icon: Megaphone,
 			time: '09:02',
 			title: 'Six timelines, one voice',
-			body: 'Bluesky, Telegram, Discord, Mastodon, LinkedIn, Threads. The announcement lands everywhere at once, with the live links waiting for you.'
+			body: 'Everywhere at once. Live links waiting when you return.'
 		}
 	];
 

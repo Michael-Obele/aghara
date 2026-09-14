@@ -65,9 +65,7 @@
 			<CardTitle class="flex items-center gap-2">
 				<Clock class="size-4" /> Time format
 			</CardTitle>
-			<CardDescription>
-				How Aghara shows times — e.g. 3:30 PM vs 15:30. Applies everywhere times are shown.
-			</CardDescription>
+			<CardDescription>3:30 PM vs 15:30. Applies everywhere.</CardDescription>
 		</CardHeader>
 		<CardContent>
 			<div class="flex items-center justify-between gap-4">
@@ -91,10 +89,9 @@
 			<CardTitle class="flex items-center gap-2">
 				<History class="size-4" /> Post history
 			</CardTitle>
-			<CardDescription>
-				Finished posts (posted, failed, canceled) auto-delete after 7 days to keep things lean. Turn
-				this on to keep them forever instead.
-			</CardDescription>
+			<CardDescription
+				>Finished posts auto-delete after 7 days. Turn on to keep them.</CardDescription
+			>
 		</CardHeader>
 		<CardContent>
 			<div class="flex items-center justify-between gap-4">

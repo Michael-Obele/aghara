@@ -143,7 +143,6 @@
 	</ul>
 
 	<p class="mt-5 text-xs leading-relaxed text-muted-foreground">
-		That is the whole job: Aghara checks your queue every minute, posts what is due, and retries up
-		to 3 times if a network hiccups.
+		That is the whole job. Checks every minute, posts what is due, retries 3 times.
 	</p>
 </div>

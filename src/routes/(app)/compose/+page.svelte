@@ -164,7 +164,7 @@
 <div class="space-y-6">
 	<div>
 		<h1 class="text-2xl font-semibold tracking-tight">Compose</h1>
-		<p class="mt-1 text-muted-foreground">Write once. Choose where and when — Aghara announces.</p>
+		<p class="mt-1 text-muted-foreground">Write once. Pick where and when.</p>
 	</div>
 
 	{#if !accounts.current}
@@ -172,7 +172,7 @@
 			<Megaphone class="mx-auto size-8 text-muted-foreground" />
 			<h3 class="mt-4 font-semibold">Connect a network first</h3>
 			<p class="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-				You need at least one connected account before you can schedule.
+				Connect one account to start scheduling.
 			</p>
 			<a href="/accounts" class="mt-6 inline-block">
 				<Button class="gap-2"><Link2 class="size-4" /> Connect your first network</Button>
