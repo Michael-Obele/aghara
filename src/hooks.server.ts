@@ -17,8 +17,5 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 
 export const handle: Handle = handleBetterAuth;
 
-// Start the minutely scheduler once per process (skipped during build).
-if (!building && !globalThis.__aghara_scheduler) {
-	globalThis.__aghara_scheduler = true;
-	startScheduler();
-}
+// Start the minutely scheduler (idempotent; skipped during build).
+if (!building) startScheduler();

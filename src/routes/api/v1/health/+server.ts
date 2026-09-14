@@ -1,17 +1,10 @@
-// GET /api/v1/health — public status endpoint (used by deploy health checks).
+// GET /api/v1/health — public status endpoint (deploy health checks + the
+// in-app system health screen). Additive: `status`, `version`, `pending` keep
+// their original meanings; `uptimeSec` and `checks` are new. 503 = down.
 import { json } from '@sveltejs/kit';
-import { eq, sql } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { scheduledPosts } from '$lib/server/db/schema';
+import { getHealthSnapshot } from '$lib/server/services/health';
 
 export async function GET() {
-	const [row] = await db
-		.select({ count: sql<number>`count(*)::int` })
-		.from(scheduledPosts)
-		.where(eq(scheduledPosts.status, 'queued'));
-	return json({
-		status: 'ok',
-		version: '0.1.0',
-		pending: row?.count ?? 0
-	});
+	const snapshot = await getHealthSnapshot();
+	return json(snapshot, { status: snapshot.status === 'down' ? 503 : 200 });
 }

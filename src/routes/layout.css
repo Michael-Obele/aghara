@@ -23,6 +23,8 @@
 	--accent: oklch(0.94 0.05 60);
 	--accent-foreground: oklch(0.3 0.05 55);
 	--destructive: oklch(0.577 0.245 27.325);
+	/* degraded / needs-attention state (health screen) — dark enough for icon contrast on light cards */
+	--warning: oklch(0.52 0.12 80);
 	--border: oklch(0.905 0.015 60);
 	--input: oklch(0.905 0.015 60);
 	--ring: oklch(0.55 0.155 50);
@@ -58,6 +60,7 @@
 	--accent: oklch(0.3 0.04 55);
 	--accent-foreground: oklch(0.955 0.01 60);
 	--destructive: oklch(0.704 0.191 22.216);
+	--warning: oklch(0.8 0.13 80);
 	--border: oklch(1 0 0 / 10%);
 	--input: oklch(1 0 0 / 15%);
 	--ring: oklch(0.75 0.16 60);
@@ -95,6 +98,7 @@
 	--color-input: var(--input);
 	--color-border: var(--border);
 	--color-destructive: var(--destructive);
+	--color-warning: var(--warning);
 	--color-accent-foreground: var(--accent-foreground);
 	--color-accent: var(--accent);
 	--color-muted-foreground: var(--muted-foreground);

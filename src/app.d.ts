@@ -17,7 +17,7 @@ declare global {
 		// interface Platform {}
 	}
 
-	var __aghara_scheduler: boolean | undefined;
+	var __aghara_scheduler_runtime: { running: boolean; lastTickAt: number | null } | undefined;
 }
 
 export {};

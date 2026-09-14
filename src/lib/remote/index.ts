@@ -6,3 +6,4 @@ export * from './retention.remote';
 export * from './billing.remote';
 export * from './tokens.remote';
 export * from './platforms.remote';
+export * from './health.remote';

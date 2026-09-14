@@ -11,6 +11,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import ThemeToggle from '$lib/components/blocks/ThemeToggle.svelte';
 	import {
+		Activity,
 		Megaphone,
 		Menu,
 		LogOut,
@@ -92,7 +93,8 @@
 		{ href: '/accounts', label: 'Accounts', icon: Link2 },
 		{ href: '/billing', label: 'Billing', icon: CreditCard },
 		{ href: '/tokens', label: 'API tokens', icon: KeyRound },
-		{ href: '/settings', label: 'Preferences', icon: Settings }
+		{ href: '/settings', label: 'Preferences', icon: Settings },
+		{ href: '/health', label: 'Health', icon: Activity }
 	];
 
 	function isActive(href: string) {
@@ -100,7 +102,11 @@
 	}
 
 	const isAccountActive = $derived(
-		isActive('/billing') || isActive('/tokens') || isActive('/settings') || isActive('/accounts')
+		isActive('/billing') ||
+			isActive('/tokens') ||
+			isActive('/settings') ||
+			isActive('/accounts') ||
+			isActive('/health')
 	);
 </script>
 
@@ -204,6 +210,16 @@
 								<span class="flex flex-col items-start gap-0.5">
 									<span class="font-medium">Preferences</span>
 									<span class="text-xs text-muted-foreground">Appearance and display</span>
+								</span>
+							</DropdownMenu.Item>
+							<DropdownMenu.Item
+								onclick={() => goto('/health')}
+								class="flex items-center gap-3 py-2.5"
+							>
+								<Activity class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+								<span class="flex flex-col items-start gap-0.5">
+									<span class="font-medium">System health</span>
+									<span class="text-xs text-muted-foreground">API, database, scheduler</span>
 								</span>
 							</DropdownMenu.Item>
 						</DropdownMenu.Group>
@@ -384,6 +400,10 @@
 								<DropdownMenu.Item onclick={() => goto('/settings')}>
 									<Settings class="size-4" />
 									Preferences
+								</DropdownMenu.Item>
+								<DropdownMenu.Item onclick={() => goto('/health')}>
+									<Activity class="size-4" />
+									System health
 								</DropdownMenu.Item>
 							</DropdownMenu.Group>
 							<DropdownMenu.Separator />

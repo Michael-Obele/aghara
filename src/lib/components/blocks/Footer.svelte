@@ -53,7 +53,7 @@
 						<li><a href="/docs/mcp" class="transition hover:text-foreground">MCP server</a></li>
 						<li><a href="/tokens" class="transition hover:text-foreground">API tokens</a></li>
 						<li>
-							<a href="/api/v1/health" class="transition hover:text-foreground">API health</a>
+							<a href="/health" class="transition hover:text-foreground">API health</a>
 						</li>
 						<li>
 							<a
