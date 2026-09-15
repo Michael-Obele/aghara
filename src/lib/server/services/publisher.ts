@@ -13,6 +13,27 @@ const MAX_ATTEMPTS = 3;
 const BATCH_SIZE = 50;
 const inFlight = new Set<string>();
 
+/**
+ * The queue's shape in one query: when the next post is due and how many are
+ * waiting. The scheduler calls this to learn the plan instead of polling for
+ * work it doesn't have.
+ */
+export async function nextDue(): Promise<{ nextRunAt: number | null; pending: number }> {
+	const [row] = await db
+		.select({
+			nextRunAt: sql<string | null>`min(${scheduledPosts.runAt})`,
+			pending: sql<number>`count(*)::int`
+		})
+		.from(scheduledPosts)
+		.where(eq(scheduledPosts.status, 'queued'));
+
+	const raw = row?.nextRunAt;
+	return {
+		nextRunAt: raw ? new Date(raw as unknown as string).getTime() : null,
+		pending: row?.pending ?? 0
+	};
+}
+
 /** Publish every due queued row. Returns how many were processed. */
 export async function publishDue(): Promise<number> {
 	// Temporal owns the clock read; the driver still takes a Date bounding value.

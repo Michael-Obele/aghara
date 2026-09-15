@@ -25,7 +25,11 @@ interval = "30s"
 timeout = "5s"
 grace_period = "30s"
 method = "GET"
-path = "/api/v1/health"
+# Liveness, not readiness: this probe must not touch the database, or a database
+# blip would make Fly restart a machine that is answering perfectly well — and a
+# probe every 30s would keep the compute awake around the clock. The deep check
+# lives at /api/v1/health.
+path = "/api/v1/ping"
 
 # Secrets (set with `fly secrets set`):
 #   DATABASE_URL, BETTER_AUTH_SECRET, APP_ENCRYPTION_KEY

@@ -5,6 +5,7 @@ import { channelAccounts, posts, scheduledPosts } from '$lib/server/db/schema';
 import { AppError, Errors } from './errors';
 import { checkLimit } from './billing';
 import { publishOne } from './publisher';
+import { noteScheduleChange } from '$lib/server/scheduler';
 import { getProvider } from '$lib/server/providers';
 import { graphemes, resolveSegments } from '$lib/server/providers/types';
 import { Temporal } from 'temporal-polyfill';
@@ -100,6 +101,10 @@ export async function createPost(
 		`[aghara] createPost: user=${userId} post=${post.id} scheduled=${inserted.map((r) => r.id).join(', ')} targets=${input.targets.map((t) => `${t.channelAccountId}@${t.runAt}`).join(', ')}`
 	);
 
+	// Hand the scheduler the earliest new deadline: it can wake exactly then
+	// instead of asking the database whether anything is due.
+	noteScheduleChange(Math.min(...input.targets.map((t) => toInstant(t.runAt).epochMilliseconds)));
+
 	return { postId: post.id, scheduledIds: inserted.map((r) => r.id) };
 }
 
@@ -166,6 +171,8 @@ export async function publishNow(
 	if (row.status !== 'queued') throw Errors.notQueued();
 
 	await publishOne(scheduledId);
+	// The row left the queue, so the next deadline may have moved.
+	noteScheduleChange();
 
 	const [fresh] = await db
 		.select({ status: scheduledPosts.status, postedUrl: scheduledPosts.postedUrl })
@@ -188,6 +195,8 @@ export async function cancelScheduled(userId: string, id: string): Promise<{ ok:
 	if (row.status !== 'queued') throw Errors.notQueued();
 
 	await db.update(scheduledPosts).set({ status: 'canceled' }).where(eq(scheduledPosts.id, id));
+	// The earliest deadline may have just moved later; the next tick re-reads the plan.
+	noteScheduleChange();
 	return { ok: true };
 }
 
@@ -215,6 +224,7 @@ export async function retryScheduled(
 		.update(scheduledPosts)
 		.set({ status: 'queued', attempts: 0, lastError: null, runAt: whenDate })
 		.where(eq(scheduledPosts.id, scheduledId));
+	noteScheduleChange(whenDate.getTime());
 	return { scheduledId, runAt: whenDate, status: 'queued' };
 }
 
@@ -238,6 +248,8 @@ export async function updateScheduled(
 		.innerJoin(channelAccounts, eq(scheduledPosts.channelAccountId, channelAccounts.id))
 		.where(and(eq(scheduledPosts.id, input.scheduledId), eq(posts.userId, userId)));
 	if (!row) throw new AppError('NOT_FOUND', 'Scheduled post not found', 404);
+	// An edit can move a run time or change what is queued; re-read the plan next tick.
+	noteScheduleChange();
 	if (row.status !== 'queued' && row.status !== 'failed') {
 		throw new AppError('NOT_EDITABLE', 'Only posts that have not been sent can be edited', 409);
 	}

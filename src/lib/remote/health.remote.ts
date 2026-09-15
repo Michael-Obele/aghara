@@ -1,92 +1,84 @@
-// Remote function for the system health screen — a live query that streams a
-// fresh probe every 30s while the screen is open, so the client renders
-// server-owned state instead of polling. Deliberately public (no login): it
-// only shows what `/api/v1/health` already serves unauthenticated. Pages never
-// fetch /api/v1 directly; the probe runs server-side against the public
-// endpoint, so the screen shows exactly what a deploy check (or an external
-// monitor) sees. When HTTP fails entirely, the API's own view is replaced by a
-// direct in-process snapshot so the screen can still explain what's going on.
-import { getRequestEvent, query } from '$app/server';
-import { getHealthSnapshot, type HealthSnapshot } from '$lib/server/services/health';
+// Remote functions for the system health screen.
+//
+// The probe stream is owned by the server (services/health-watch.ts, driven by
+// the scheduler), so this layer is a pure view: it reads the shared window, the
+// last deep check and the scheduler's memory. No visitor probes anything and
+// nothing here reads the database, so the page costs the same whether one person
+// is watching or a thousand — and every visitor sees the same history.
+import { command, getRequestEvent, query } from '$app/server';
+import type { HealthSnapshot } from '$lib/server/services/health';
+import {
+	DEEP_PATH,
+	LIVENESS_PATH,
+	PROBE_INTERVAL_MS,
+	history,
+	lastDeep,
+	lastProbe,
+	probe,
+	probeDeep,
+	type DeepResult,
+	type HealthSample,
+	type LivenessResult
+} from '$lib/server/services/health-watch';
+import { schedulerStatus, type SchedulerStatus } from '$lib/server/scheduler';
 
 export type { HealthCheck, HealthCheckState, HealthSnapshot } from '$lib/server/services/health';
-
-export interface HealthProbe {
-	/** The exact URL that was hit. */
-	url: string;
-	ok: boolean;
-	statusCode: number | null;
-	latencyMs: number;
-	/** Parsed JSON body, when the endpoint answered with one. */
-	body: HealthSnapshot | null;
-	error: string | null;
-}
+export type { HealthSample, LivenessResult, DeepResult } from '$lib/server/services/health-watch';
 
 export interface HealthReport {
-	checkedAt: string;
-	probe: HealthProbe;
-	/** The API's own report when reachable, otherwise a direct runtime snapshot. */
-	snapshot: HealthSnapshot;
+	/** Latest liveness probe — "can the API answer HTTP?" (no database involved). */
+	live: LivenessResult | null;
+	/** Latest deep check — database + scheduler, the public status contract. */
+	deep: DeepResult | null;
+	/** The deep payload the page renders; null while the API is unreachable. */
+	snapshot: HealthSnapshot | null;
+	/** Shared probe window, oldest → newest — identical for every visitor. */
+	history: HealthSample[];
+	scheduler: SchedulerStatus;
+	probeIntervalMs: number;
+	livenessPath: string;
+	deepPath: string;
 }
 
-/** How often the live stream pushes a new probe while the screen stays open. */
-const PROBE_INTERVAL_MS = 3000;
+/** How long "Check now" waits before it forces another check. */
+const FORCE_COOLDOWN_MS = 30000;
 
+function report(): HealthReport {
+	const deep = lastDeep();
+	return {
+		live: lastProbe(),
+		deep,
+		snapshot: (deep?.body as HealthSnapshot | null) ?? null,
+		history: history(),
+		scheduler: schedulerStatus(),
+		probeIntervalMs: PROBE_INTERVAL_MS,
+		livenessPath: LIVENESS_PATH,
+		deepPath: DEEP_PATH
+	};
+}
+
+/** Streams the shared state. The stream is a viewer; it never probes on its own. */
 export const getHealthLive = query.live(async function* () {
-	// `getRequestEvent()` is not an auth check — it only supplies the origin for
-	// the self-probe. Read it before the first await: the request context is only
-	// guaranteed when the stream starts.
-	const { url } = getRequestEvent();
-	const target = new URL('/api/v1/health', url.origin);
-
-	// Yields immediately (SSR takes the first value), then every 30s. The
-	// "Check now" button calls reconnect(), which restarts this generator.
 	while (true) {
-		yield await probe(target);
-		await sleep(PROBE_INTERVAL_MS);
+		yield report();
+		await sleep(5000);
 	}
 });
 
-async function probe(target: URL): Promise<HealthReport> {
-	const started = performance.now();
-
-	let statusCode: number | null = null;
-	let body: HealthSnapshot | null = null;
-	let error: string | null = null;
-	try {
-		const res = await fetch(target, {
-			headers: { accept: 'application/json' },
-			signal: AbortSignal.timeout(5000)
-		});
-		statusCode = res.status;
-		const parsed: unknown = await res.json().catch(() => null);
-		if (
-			parsed &&
-			typeof parsed === 'object' &&
-			'status' in parsed &&
-			Array.isArray((parsed as HealthSnapshot).checks)
-		) {
-			body = parsed as HealthSnapshot;
-		} else {
-			error = `Unexpected response shape (HTTP ${res.status})`;
-		}
-	} catch (err) {
-		error = err instanceof Error ? err.message : 'Request failed';
-	}
-
-	return {
-		checkedAt: new Date().toISOString(),
-		probe: {
-			url: target.toString(),
-			ok: statusCode !== null && statusCode < 400 && body !== null,
-			statusCode,
-			latencyMs: Math.round(performance.now() - started),
-			body,
-			error
-		},
-		snapshot: body ?? (await getHealthSnapshot())
-	};
-}
+/**
+ * "Check now" — force one liveness probe and one deep check against the origin
+ * this visitor is actually talking to (so it works in dev without ORIGIN set).
+ * The check is rate-limited: the deep one reads the database, and this endpoint
+ * is public.
+ */
+export const checkNow = command(async () => {
+	const { url } = getRequestEvent();
+	const since = Date.now() - (lastDeep()?.at ?? 0);
+	if (since < FORCE_COOLDOWN_MS) return { forced: false, retryInMs: FORCE_COOLDOWN_MS - since };
+	await probe(url.origin);
+	await probeDeep(url.origin);
+	return { forced: true, retryInMs: FORCE_COOLDOWN_MS };
+});
 
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));

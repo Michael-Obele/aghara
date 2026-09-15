@@ -16,7 +16,9 @@ services:
         protocol: http
     health_checks:
       - port: 8000
-        path: /api/v1/health
+        # Liveness only — no database access, so a database blip can't make Koyeb
+        # recycle a healthy instance, and the check can't wake the compute.
+        path: /api/v1/ping
     env:
       - key: PORT
         value: '8000'

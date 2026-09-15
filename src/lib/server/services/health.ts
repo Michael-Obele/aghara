@@ -84,8 +84,16 @@ export async function getHealthSnapshot(): Promise<HealthSnapshot> {
 
 /** Scheduler liveness — the minutely publisher is what actually ships posts. */
 function schedulerCheck(): HealthCheck {
-	const { running, lastTickAt } = schedulerStatus();
+	const { running, disabled, lastTickAt, nextDueAt, lastSweepAt } = schedulerStatus();
 	const base = { id: 'scheduler', label: 'Scheduler', latencyMs: null } as const;
+
+	if (disabled) {
+		return {
+			...base,
+			state: 'ok',
+			detail: 'Disabled via SCHEDULER=off — scheduled posts will not run.'
+		};
+	}
 
 	if (!running) {
 		return {
@@ -114,7 +122,18 @@ function schedulerCheck(): HealthCheck {
 			detail: `Last sweep ${formatAge(ageMs)} ago — the scheduler looks stalled.`
 		};
 	}
-	return { ...base, state: 'ok', detail: `Last sweep ${formatAge(ageMs)} ago.` };
+
+	// The tick is a heartbeat that only reads the database when there is work, so
+	// say what it is waiting for rather than implying a query every minute.
+	const waiting =
+		nextDueAt === null
+			? 'Queue empty'
+			: `Next post in ${formatAge(Math.max(0, nextDueAt - Date.now()))}`;
+	const swept =
+		lastSweepAt === null
+			? 'no sweep since boot'
+			: `last sweep ${formatAge(Date.now() - lastSweepAt)} ago`;
+	return { ...base, state: 'ok', detail: `Tick ${formatAge(ageMs)} ago. ${waiting} · ${swept}.` };
 }
 
 function formatAge(ms: number): string {

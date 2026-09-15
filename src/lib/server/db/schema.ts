@@ -104,3 +104,29 @@ export const subscriptions = pgTable('subscriptions', {
 	status: text('status').notNull().default('active'),
 	currentPeriodEnd: timestamp('current_period_end', { withTimezone: true })
 });
+
+// health_probes — the status page's shared history, written by the server's own
+// probe stream (never by a visitor), so every visitor sees the same window.
+// Raw rows are kept RAW_RETENTION_DAYS; older hours survive as rollups, which
+// keeps years of record in a few hundred rows.
+export const healthProbes = pgTable(
+	'health_probes',
+	{
+		checkedAt: timestamp('checked_at', { withTimezone: true }).primaryKey(),
+		ok: boolean('ok').notNull(),
+		latencyMs: integer('latency_ms').notNull(),
+		statusCode: integer('status_code')
+	},
+	(t) => [index('ix_probe_time').on(t.checkedAt)]
+);
+
+// health_probe_hours — one row per hour, forever. This is the uptime record:
+// how many probes succeeded, and the latency spread, without keeping every sample.
+export const healthProbeHours = pgTable('health_probe_hours', {
+	bucket: timestamp('bucket', { withTimezone: true }).primaryKey(),
+	okCount: integer('ok_count').notNull(),
+	failCount: integer('fail_count').notNull(),
+	minMs: integer('min_ms').notNull(),
+	avgMs: integer('avg_ms').notNull(),
+	maxMs: integer('max_ms').notNull()
+});

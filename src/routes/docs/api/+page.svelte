@@ -338,12 +338,24 @@ const posts = await res.json();`;
 					<div class="rounded-lg border p-4">
 						<p class="flex flex-wrap items-center gap-2">
 							<Badge variant="secondary" class="font-mono">GET</Badge>
+							<code class="font-mono text-sm">/api/v1/ping</code>
+							<Badge variant="outline">Public</Badge>
+						</p>
+						<p class="mt-2 text-sm text-muted-foreground">
+							Liveness only — answers whether the app can serve HTTP, without touching the database.
+							This is what our deploy health checks hit, so a database blip can't restart a healthy
+							instance.
+						</p>
+					</div>
+					<div class="rounded-lg border p-4">
+						<p class="flex flex-wrap items-center gap-2">
+							<Badge variant="secondary" class="font-mono">GET</Badge>
 							<code class="font-mono text-sm">/api/v1/health</code>
 							<Badge variant="outline">Public</Badge>
 						</p>
 						<p class="mt-2 text-sm text-muted-foreground">
-							Returns status, version, and queued count. Use it to check the API is up before
-							scheduling.
+							The deep check: status, version, and queued count, verified against the database and
+							the scheduler (503 when down). Use it before scheduling, or from an agent.
 						</p>
 						<pre
 							class="mt-3 overflow-x-auto rounded-md border bg-muted/40 p-3 font-mono text-xs">{healthResponse}</pre>

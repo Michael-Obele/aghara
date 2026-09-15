@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { getHealthLive, type HealthReport } from '$lib/remote';
+	import { checkNow, getHealthLive } from '$lib/remote';
 	import { cn } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
-	import { untrack } from 'svelte';
 	import prettyMilliseconds from 'pretty-ms';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -47,24 +46,25 @@
 	// `await` (rather than `health.current`) — a live query's first value is
 	// resolved during SSR and reused for hydration; `.current` is client-only.
 	const report = $derived(await health);
-	const probe = $derived(report.probe);
+	/** Latest liveness probe — "can the API answer HTTP?" (no database involved). */
+	const live = $derived(report.live);
+	/** The deep payload (database + scheduler); null while the API is unreachable. */
 	const snapshot = $derived(report.snapshot);
-	const issues = $derived(snapshot.checks.filter((check) => check.state !== 'ok'));
+	const issues = $derived(snapshot?.checks.filter((check) => check.state !== 'ok') ?? []);
+	/** When the deep check last ran — the Checks card shows its age, not a pretence. */
+	const deepChecked = $derived(report.deep ? new Date(report.deep.at) : null);
 
 	let now = $state(new Date());
 
-	type Sample = { ok: boolean; latencyMs: number; checkedAt: string };
-
-	function toSample(r: HealthReport): Sample {
-		return { ok: r.probe.ok, latencyMs: r.probe.latencyMs, checkedAt: r.checkedAt };
-	}
-
-	// The chart's view of a probe — one row feeds both charts. `latency` is null on
-	// a failure (an outage has no round trip to plot, so the area breaks there) and
-	// `failed` is the errors chart's value: 1 marks a failed probe, 0 an okay one.
+	// The charts read the server's shared window (services/health-watch.ts): the
+	// probe stream belongs to the app, not to this tab. A refresh — or a visitor who
+	// arrives after an outage — sees the same history everyone else sees.
 	type Probe = { at: Date; latency: number | null; failed: number };
 
-	const PROBE_INTERVAL = timeSecond.every(30); // the live query re-probes every 30 s
+	// Page copy and the bars' width both read the watch's interval, so they can
+	// never disagree about how often a probe actually happens.
+	const probeSeconds = $derived(Math.round(report.probeIntervalMs / 1000));
+	const probeInterval = $derived(timeSecond.every(Math.max(1, probeSeconds)));
 	// Shared by both charts so the probes line up column-for-column across the two
 	// rows; each chart adds its own top/bottom room for the axes it carries.
 	const PLOT_PADDING = { left: 44, right: 8 };
@@ -74,24 +74,19 @@
 		return at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 	}
 
-	// Round-trip history — appended on every streamed report. This is the one piece
-	// of per-viewer history (it survives reconnects), so it can't be derived;
-	// the untrack keeps the write from re-triggering this effect.
-	let history = $state<Sample[]>([]);
-	const MAX_HISTORY = 200;
 	const probes = $derived<Probe[]>(
-		history.map((sample) => ({
-			at: new Date(sample.checkedAt),
+		report.history.map((sample) => ({
+			at: new Date(sample.at),
 			latency: sample.ok ? sample.latencyMs : null,
 			failed: sample.ok ? 0 : 1
 		}))
 	);
-	$effect(() => {
-		const r = report;
-		untrack(() => {
-			history = [...history, toSample(r)].slice(-MAX_HISTORY);
-		});
-	});
+	/** How wide the window actually is — measured from the samples, never assumed. */
+	const windowMinutes = $derived(
+		probes.length > 1
+			? Math.max(1, Math.round((+probes[probes.length - 1].at - +probes[0].at) / 60_000))
+			: 0
+	);
 
 	// Timers only — freshness ticker, so "checked 42s ago" stays honest.
 	$effect(() => {
@@ -102,11 +97,26 @@
 	});
 
 	const hero = $derived.by(() => {
-		if (!probe.body) {
+		if (!live) {
+			return {
+				tone: 'down' as const,
+				title: 'Waiting for the first probe',
+				detail: `The watch probes every ${probeSeconds} s.`
+			};
+		}
+		if (!live.ok) {
 			return {
 				tone: 'down' as const,
 				title: 'API unreachable',
-				detail: probe.error ?? 'The public endpoint did not respond.'
+				detail: live.error ?? 'The public endpoint did not respond.'
+			};
+		}
+		if (!snapshot) {
+			// The API answers; the database-backed check just hasn't landed yet.
+			return {
+				tone: 'ok' as const,
+				title: 'API responding',
+				detail: 'Waiting for the first deep check — database and scheduler.'
 			};
 		}
 		if (snapshot.status === 'ok') {
@@ -143,27 +153,27 @@
 		const api: ScreenRow = {
 			id: 'api',
 			label: 'REST API',
-			state: probe.ok ? 'ok' : 'fail',
-			meta: probe.statusCode ? `HTTP ${probe.statusCode} · ${probe.latencyMs} ms` : 'no response',
-			detail: probe.error ?? `GET ${probe.url}`
+			state: live?.ok ? 'ok' : 'fail',
+			meta: live?.statusCode ? `HTTP ${live.statusCode} · ${live.latencyMs} ms` : 'no response',
+			detail: live?.error ?? `GET ${live?.url ?? report.livenessPath}`
 		};
-		const checks: ScreenRow[] = snapshot.checks.map((check) => ({
+		const checks: ScreenRow[] = (snapshot?.checks ?? []).map((check) => ({
 			id: check.id,
 			label: check.label,
 			state: check.state,
-			meta: check.latencyMs === null ? 'every 60 s' : `${check.latencyMs} ms`,
+			meta: check.latencyMs === null ? `every ${probeSeconds} s` : `${check.latencyMs} ms`,
 			detail: check.detail
 		}));
 		return [api, ...checks];
 	});
 
-	const okSamples = $derived(history.filter((s) => s.ok));
+	const okSamples = $derived(report.history.filter((s) => s.ok));
 	const avgLatency = $derived(
 		okSamples.length
 			? Math.round(okSamples.reduce((a, b) => a + b.latencyMs, 0) / okSamples.length)
 			: 0
 	);
-	const failCount = $derived(history.filter((s) => !s.ok).length);
+	const failCount = $derived(report.history.filter((s) => !s.ok).length);
 
 	// X-axis ticks, in the reader's locale: seconds only while the window is short
 	// enough that ticks land sub-minute (which would otherwise repeat a label), a
@@ -183,7 +193,7 @@
 	});
 
 	const responseJson = $derived(
-		JSON.stringify(probe.body ?? { error: probe.error ?? 'No response from the endpoint' }, null, 2)
+		JSON.stringify(snapshot ?? { error: live?.error ?? 'No response from the endpoint' }, null, 2)
 	);
 
 	async function copyResponse() {
@@ -209,7 +219,12 @@
 				A server-side probe of the public API, the database, and the scheduler.
 			</p>
 		</div>
-		<Button variant="outline" class="gap-2" onclick={() => void health.reconnect()}>
+		<Button
+			variant="outline"
+			class="gap-2"
+			disabled={checkNow.pending > 0}
+			onclick={() => void checkNow()}
+		>
 			<RefreshCw class="size-4" aria-hidden="true" /> Check now
 		</Button>
 	</div>
@@ -264,14 +279,15 @@
 
 					<div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t pt-4">
 						<p class="text-sm text-muted-foreground">
-							Last checked {formatRelativeTime(report.checkedAt, now)}
+							Last checked {deepChecked ? formatRelativeTime(deepChecked, now) : '—'}
 						</p>
 						<!-- `connected` is false during SSR (no stream yet), so fall back to the
 					     static description there and let the client report drops. -->
 						{#if health.connected || !browser}
 							<p class="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
 								<span class="size-2 animate-pulse rounded-full bg-primary" aria-hidden="true"
-								></span> Live · every 30 s
+								></span>
+								Live · every {probeSeconds} s
 							</p>
 						{:else}
 							<p class="text-sm font-medium">Reconnecting…</p>
@@ -302,10 +318,11 @@
 											<Info class="size-3.5 text-muted-foreground" aria-hidden="true" />
 										</Tooltip.Trigger>
 										<Tooltip.Content side="top" class="max-w-75 text-xs leading-relaxed">
-											Each point is one server-side probe to
-											<code class="rounded bg-muted px-1 py-0.5 font-mono">GET /api/v1/health</code>
-											every 30 s. The top chart plots the round trip over time; the bottom one bars the
-											probes that failed. Hover either chart to inspect a probe.
+											Every {probeSeconds} s the server probes
+											<code class="rounded bg-muted px-1 py-0.5 font-mono">GET /api/v1/ping</code>
+											— liveness only, no database — and every probe is kept here, so this window is the
+											same one everybody sees. The top chart plots the round trip; the bottom one bars
+											the probes that failed. Hover either chart to inspect a probe.
 										</Tooltip.Content>
 									</Tooltip.Root>
 								</CardTitle>
@@ -317,7 +334,7 @@
 							</CardHeader>
 							<CardContent class="space-y-4">
 								<p class="text-sm text-muted-foreground">
-									Last {probes.length} probes · 30 s interval · ~{Math.ceil(probes.length / 2)} min window
+									Last {probes.length} probes · every {probeSeconds} s · ~{windowMinutes} min window
 								</p>
 								<!-- Latency: the round trip each probe measured. The area breaks
 								     where a probe failed — there is no round trip to plot. -->
@@ -400,7 +417,7 @@
 									data={probes}
 									x="at"
 									xScale={scaleTime()}
-									xInterval={PROBE_INTERVAL}
+									xInterval={probeInterval}
 									y="failed"
 									yDomain={[0, 1]}
 									height={110}
@@ -488,22 +505,24 @@
 					<div>
 						<p class="text-sm text-muted-foreground">Version</p>
 						<p class="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
-							v{snapshot.version}
+							v{snapshot?.version ?? '—'}
 						</p>
 					</div>
 					<div>
 						<p class="text-sm text-muted-foreground">Process uptime</p>
 						<p class="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
-							{prettyMilliseconds(Math.max(1, snapshot.uptimeSec) * 1000, {
-								unitCount: 2,
-								secondsDecimalDigits: 0
-							})}
+							{snapshot
+								? prettyMilliseconds(Math.max(1, snapshot.uptimeSec) * 1000, {
+										unitCount: 2,
+										secondsDecimalDigits: 0
+									})
+								: '—'}
 						</p>
 					</div>
 					<div>
 						<p class="text-sm text-muted-foreground">Queued posts</p>
 						<p class="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
-							{snapshot.pending}
+							{report.scheduler.pending}
 						</p>
 					</div>
 				</CardContent>
@@ -551,9 +570,9 @@
 					</CardTitle>
 					<CardAction>
 						<div class="flex items-center gap-2">
-							{#if probe.statusCode}
-								<Badge variant={probe.ok ? 'default' : 'destructive'} class="tabular-nums">
-									{probe.statusCode} · {probe.latencyMs} ms
+							{#if report.deep?.statusCode}
+								<Badge variant={report.deep.ok ? 'default' : 'destructive'} class="tabular-nums">
+									{report.deep.statusCode} · {report.deep.latencyMs} ms
 								</Badge>
 							{/if}
 							<Button variant="outline" size="sm" class="gap-2" onclick={copyResponse}>
@@ -570,8 +589,10 @@
 			</Card>
 
 			<p class="text-sm text-muted-foreground">
-				Checks stream from the server every 30 s and hit the public endpoint — the same path deploy
-				platforms and the MCP <code class="font-mono">aghara_health</code> tool use.
+				The server probes its own public endpoint every {probeSeconds} s and keeps every sample, so everyone
+				sees the same window — and a refresh never empties it. The deep check (database + scheduler) runs
+				on a slow window plus whenever you press Check now: the same path deploy platforms and the MCP
+				<code class="font-mono">aghara_health</code> tool use.
 			</p>
 		</div>
 	</svelte:boundary>
