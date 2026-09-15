@@ -41,9 +41,19 @@ export const LIVENESS_PATH = '/api/v1/ping';
 /** Deep path: the public status contract (database + scheduler), 503 when down. */
 export const DEEP_PATH = '/api/v1/health';
 
-/** How often the scheduler probes. Exported so the page copy cannot drift from it. */
-export const PROBE_INTERVAL_MS = 60_000;
-/** Samples the page renders — 200 × 60 s ≈ 3.3 h. */
+/**
+ * How often the scheduler probes. Exported so the page copy cannot drift from it.
+ *
+ * Fifteen minutes, deliberately: it is slower than every monitoring vendor's
+ * *default* (Uptime.com ships 5 min, UptimeRobot's free tier is 5 min, Datadog's
+ * shortest is 1 min) yet still catches an outage inside a quarter hour. It is
+ * also comfortably longer than a serverless-Postgres idle timeout (Neon suspends
+ * after 5 min), so the compute actually sleeps between checks instead of being
+ * held awake by us. Hourly would save nothing on the database and would let a
+ * 50-minute outage pass unrecorded.
+ */
+export const PROBE_INTERVAL_MS = 15 * 60_000;
+/** Samples the page renders — 200 × 15 min ≈ 50 h. */
 const RING_CAPACITY = 200;
 /** Buffered samples awaiting a flush; bounds memory while the database is unreachable. */
 const FLUSH_CAPACITY = 500;
@@ -53,14 +63,33 @@ const PROBE_TIMEOUT_MS = 5_000;
 
 // One object per process, on globalThis for the same reason the scheduler
 // runtime lives there: Vite can instantiate server modules more than once.
-const runtime = (globalThis.__aghara_health_watch ??= {
+// Defaults are filled *into* the stored object (never into a fresh one) so every
+// module copy keeps the same reference and a later shape change cannot leave a
+// field undefined in a process that outlived it.
+const runtime = globalThis.__aghara_health_watch ?? ({} as HealthWatchRuntime);
+for (const [key, value] of Object.entries({
 	samples: [] as HealthSample[],
 	buffered: [] as HealthSample[],
 	hydrated: false,
-	last: null as LivenessResult | null,
-	deep: null as DeepResult | null,
-	lastFlushAt: null as number | null
-});
+	last: null,
+	deep: null,
+	lastFlushAt: null
+})) {
+	if ((runtime as Record<string, unknown>)[key] === undefined) {
+		(runtime as Record<string, unknown>)[key] = value;
+	}
+}
+globalThis.__aghara_health_watch = runtime;
+
+/** The watch's shared state: the ring every visitor reads, plus the flush buffer. */
+interface HealthWatchRuntime {
+	samples: HealthSample[];
+	buffered: HealthSample[];
+	hydrated: boolean;
+	last: LivenessResult | null;
+	deep: DeepResult | null;
+	lastFlushAt: number | null;
+}
 
 /** The origin our own probes hit — the public URL a deploy check would use. */
 export function watchOrigin(): string {

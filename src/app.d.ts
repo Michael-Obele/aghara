@@ -31,6 +31,7 @@ declare global {
 				/** A mutation changed the queue; re-read the plan on the next tick. */
 				scheduleDirty: boolean;
 				lastSweepAt: number | null;
+				lastProbeAt: number | null;
 				lastResyncAt: number | null;
 				lastHousekeepingAt: number | null;
 				lastPruneAt: number | null;

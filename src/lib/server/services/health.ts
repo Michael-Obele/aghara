@@ -3,9 +3,11 @@
 // keep their original meanings, so deploy health checks and the MCP tool that
 // forwards to this endpoint are unaffected.
 import { eq, sql } from 'drizzle-orm';
+import prettyMilliseconds from 'pretty-ms';
 import { db } from '$lib/server/db';
 import { scheduledPosts } from '$lib/server/db/schema';
 import { schedulerStatus } from '$lib/server/scheduler';
+import { PROBE_INTERVAL_MS } from './health-watch';
 // The app's real version (`$app/environment`'s `version` is a build timestamp —
 // SvelteKit uses it for stale-deploy detection, so it is not app-facing here).
 import pkg from '../../../../package.json';
@@ -84,7 +86,7 @@ export async function getHealthSnapshot(): Promise<HealthSnapshot> {
 
 /** Scheduler liveness — the minutely publisher is what actually ships posts. */
 function schedulerCheck(): HealthCheck {
-	const { running, disabled, lastTickAt, nextDueAt, lastSweepAt } = schedulerStatus();
+	const { running, disabled, lastTickAt, nextDueAt, nextProbeAt, nextDeepAt } = schedulerStatus();
 	const base = { id: 'scheduler', label: 'Scheduler', latencyMs: null } as const;
 
 	if (disabled) {
@@ -123,23 +125,19 @@ function schedulerCheck(): HealthCheck {
 		};
 	}
 
-	// The tick is a heartbeat that only reads the database when there is work, so
-	// say what it is waiting for rather than implying a query every minute.
-	const waiting =
-		nextDueAt === null
-			? 'Queue empty'
-			: `Next post in ${formatAge(Math.max(0, nextDueAt - Date.now()))}`;
-	const swept =
-		lastSweepAt === null
-			? 'no sweep since boot'
-			: `last sweep ${formatAge(Date.now() - lastSweepAt)} ago`;
-	return { ...base, state: 'ok', detail: `Tick ${formatAge(ageMs)} ago. ${waiting} · ${swept}.` };
+	// The tick is a heartbeat in memory; the probe and the deep check run on their
+	// own slow windows, so an idle instance reads as idle rather than busy. The
+	// live countdown to the next probe is rendered from memory by the page — this
+	// string is part of the cached snapshot, so it stays a statement of behaviour.
+	const every = prettyMilliseconds(PROBE_INTERVAL_MS, { verbose: true });
+	return {
+		...base,
+		state: 'ok',
+		detail: `Armed · probes every ${every} · reads the database only when a post is due.`
+	};
 }
 
+/** Ages and countdowns, by pretty-ms — no hand-rolled unit thresholds to get wrong. */
 function formatAge(ms: number): string {
-	const seconds = Math.round(ms / 1000);
-	if (seconds < 90) return `${seconds}s`;
-	const minutes = Math.round(seconds / 60);
-	if (minutes < 90) return `${minutes}m`;
-	return `${Math.round(minutes / 60)}h`;
+	return prettyMilliseconds(ms);
 }

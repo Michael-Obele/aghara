@@ -55,6 +55,12 @@
 	const deepChecked = $derived(report.deep ? new Date(report.deep.at) : null);
 
 	let now = $state(new Date());
+	/** Countdown to the next probe, from the scheduler's memory — ticks with `now`. */
+	const nextProbeIn = $derived(
+		report.scheduler.nextProbeAt === null
+			? null
+			: Math.max(0, report.scheduler.nextProbeAt - now.getTime())
+	);
 
 	// The charts read the server's shared window (services/health-watch.ts): the
 	// probe stream belongs to the app, not to this tab. A refresh — or a visitor who
@@ -64,6 +70,11 @@
 	// Page copy and the bars' width both read the watch's interval, so they can
 	// never disagree about how often a probe actually happens.
 	const probeSeconds = $derived(Math.round(report.probeIntervalMs / 1000));
+	// Durations come from pretty-ms (already a dependency, and dependency-free
+	// itself) rather than hand-rolled thresholds — it keeps every unit, so an
+	// hour and a half never collapses into a rounded-down "1 hour".
+	/** "15 minutes" — how far apart probes are, straight from the watch's interval. */
+	const intervalLabel = $derived(prettyMilliseconds(report.probeIntervalMs, { verbose: true }));
 	const probeInterval = $derived(timeSecond.every(Math.max(1, probeSeconds)));
 	// Shared by both charts so the probes line up column-for-column across the two
 	// rows; each chart adds its own top/bottom room for the axes it carries.
@@ -87,6 +98,10 @@
 			? Math.max(1, Math.round((+probes[probes.length - 1].at - +probes[0].at) / 60_000))
 			: 0
 	);
+	/** "2 days 2 hours" — the history currently on screen, in words. */
+	const windowLabel = $derived(
+		prettyMilliseconds(Math.max(1, windowMinutes) * 60_000, { verbose: true })
+	);
 
 	// Timers only — freshness ticker, so "checked 42s ago" stays honest.
 	$effect(() => {
@@ -101,7 +116,7 @@
 			return {
 				tone: 'down' as const,
 				title: 'Waiting for the first probe',
-				detail: `The watch probes every ${probeSeconds} s.`
+				detail: `The watch probes ${intervalLabel}.`
 			};
 		}
 		if (!live.ok) {
@@ -161,7 +176,7 @@
 			id: check.id,
 			label: check.label,
 			state: check.state,
-			meta: check.latencyMs === null ? `every ${probeSeconds} s` : `${check.latencyMs} ms`,
+			meta: check.latencyMs === null ? `every ${intervalLabel}` : `${check.latencyMs} ms`,
 			detail: check.detail
 		}));
 		return [api, ...checks];
@@ -182,7 +197,7 @@
 	const axisTickFormat = $derived.by(() => {
 		const spanMs = probes.length > 1 ? +probes[probes.length - 1].at - +probes[0].at : 0;
 		const options: Intl.DateTimeFormatOptions =
-			spanMs > 36 * 3_600_000
+			spanMs > 7 * 86_400_000
 				? { month: 'short', day: 'numeric' }
 				: spanMs > 6 * 3_600_000
 					? { month: 'short', day: 'numeric', hour: 'numeric' }
@@ -287,7 +302,11 @@
 							<p class="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
 								<span class="size-2 animate-pulse rounded-full bg-primary" aria-hidden="true"
 								></span>
-								Live · every {probeSeconds} s
+								{#if nextProbeIn !== null}
+									Next probe in {prettyMilliseconds(nextProbeIn, { secondsDecimalDigits: 0 })}
+								{:else}
+									Live · {intervalLabel}
+								{/if}
 							</p>
 						{:else}
 							<p class="text-sm font-medium">Reconnecting…</p>
@@ -318,9 +337,9 @@
 											<Info class="size-3.5 text-muted-foreground" aria-hidden="true" />
 										</Tooltip.Trigger>
 										<Tooltip.Content side="top" class="max-w-75 text-xs leading-relaxed">
-											Every {probeSeconds} s the server probes
+											The server probes every {intervalLabel} —
 											<code class="rounded bg-muted px-1 py-0.5 font-mono">GET /api/v1/ping</code>
-											— liveness only, no database — and every probe is kept here, so this window is the
+											— liveness only, no database — and keeps every sample here, so this window is the
 											same one everybody sees. The top chart plots the round trip; the bottom one bars
 											the probes that failed. Hover either chart to inspect a probe.
 										</Tooltip.Content>
@@ -334,7 +353,7 @@
 							</CardHeader>
 							<CardContent class="space-y-4">
 								<p class="text-sm text-muted-foreground">
-									Last {probes.length} probes · every {probeSeconds} s · ~{windowMinutes} min window
+									Last {probes.length} probes · ~{windowLabel} of history
 								</p>
 								<!-- Latency: the round trip each probe measured. The area breaks
 								     where a probe failed — there is no round trip to plot. -->
@@ -589,7 +608,7 @@
 			</Card>
 
 			<p class="text-sm text-muted-foreground">
-				The server probes its own public endpoint every {probeSeconds} s and keeps every sample, so everyone
+				The server probes its own public endpoint every {intervalLabel} and keeps every sample, so everyone
 				sees the same window — and a refresh never empties it. The deep check (database + scheduler) runs
 				on a slow window plus whenever you press Check now: the same path deploy platforms and the MCP
 				<code class="font-mono">aghara_health</code> tool use.
