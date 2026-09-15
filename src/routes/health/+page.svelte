@@ -283,7 +283,11 @@
 			<!-- Latency and errors, as two grouped charts: one hover drives both. -->
 			<Tooltip.Provider delayDuration={150}>
 				{#if probes.length > 1}
-					<ChartGroup pointer={{ tooltip: false }}>
+					<!-- No `pointer.tooltip: false` here on purpose: the group's default is
+					     what makes one hover read both cards — the same probe reports its
+					     latency above and its outcome below, each tooltip anchored to its
+					     own chart. -->
+					<ChartGroup>
 						<!-- Latency -->
 						<Card>
 							<CardHeader class="pb-3">
