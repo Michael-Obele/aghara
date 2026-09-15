@@ -17,13 +17,24 @@
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { formatRelativeTime } from '$lib/time';
 	import {
+		Area,
+		AreaChart,
+		Axis,
+		BarChart,
+		Bars,
+		ChartGroup,
+		Highlight,
+		Layer,
+		Tooltip as ChartTooltip
+	} from 'layerchart';
+	import { scaleTime } from 'd3-scale';
+	import { timeSecond } from 'd3-time';
+	import {
 		Activity,
-		ChartBar,
+		ChartArea,
 		CircleCheck,
 		CircleX,
-		Clock,
 		Copy,
-		Gauge,
 		Info,
 		Radio,
 		RefreshCw,
@@ -48,14 +59,37 @@
 		return { ok: r.probe.ok, latencyMs: r.probe.latencyMs, checkedAt: r.checkedAt };
 	}
 
-	// Round-trip strip — appended on every streamed report. This is the one piece
+	// The chart's view of a probe — one row feeds both charts. `latency` is null on
+	// a failure (an outage has no round trip to plot, so the area breaks there) and
+	// `failed` is the errors chart's value: 1 marks a failed probe, 0 an okay one.
+	type Probe = { at: Date; latency: number | null; failed: number };
+
+	const PROBE_INTERVAL = timeSecond.every(30); // the live query re-probes every 30 s
+	// Shared by both charts so the probes line up column-for-column across the two
+	// rows; each chart adds its own top/bottom room for the axes it carries.
+	const PLOT_PADDING = { left: 44, right: 8 };
+
+	/** Wall-clock time of a probe, for the chart tooltip. */
+	function probeTime(at: Date): string {
+		return at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+	}
+
+	// Round-trip history — appended on every streamed report. This is the one piece
 	// of per-viewer history (it survives reconnects), so it can't be derived;
 	// the untrack keeps the write from re-triggering this effect.
 	let history = $state<Sample[]>([]);
+	const MAX_HISTORY = 200;
+	const probes = $derived<Probe[]>(
+		history.map((sample) => ({
+			at: new Date(sample.checkedAt),
+			latency: sample.ok ? sample.latencyMs : null,
+			failed: sample.ok ? 0 : 1
+		}))
+	);
 	$effect(() => {
 		const r = report;
 		untrack(() => {
-			history = [...history, toSample(r)].slice(-24);
+			history = [...history, toSample(r)].slice(-MAX_HISTORY);
 		});
 	});
 
@@ -123,28 +157,30 @@
 		return [api, ...checks];
 	});
 
-	const maxLatency = $derived(Math.max(1, ...history.filter((s) => s.ok).map((s) => s.latencyMs)));
 	const okSamples = $derived(history.filter((s) => s.ok));
 	const avgLatency = $derived(
 		okSamples.length
 			? Math.round(okSamples.reduce((a, b) => a + b.latencyMs, 0) / okSamples.length)
 			: 0
 	);
-	const minLatency = $derived(
-		okSamples.length ? Math.min(...okSamples.map((s) => s.latencyMs)) : 0
-	);
 	const failCount = $derived(history.filter((s) => !s.ok).length);
 
-	function barHeight(sample: Sample): number {
-		if (!sample.ok) return 44;
-		return Math.max(7, Math.round((sample.latencyMs / maxLatency) * 44));
-	}
-
-	function barLabel(sample: Sample, index: number): string {
-		const pos = `${index + 1} of ${history.length}`;
-		if (!sample.ok) return `Probe ${pos} — failed (no response)`;
-		return `Probe ${pos} — ${sample.latencyMs} ms`;
-	}
+	// X-axis ticks, in the reader's locale: seconds only while the window is short
+	// enough that ticks land sub-minute (which would otherwise repeat a label), a
+	// bare "1:40 PM" for the usual hour or two, then a date once a bare time stops
+	// meaning anything.
+	const axisTickFormat = $derived.by(() => {
+		const spanMs = probes.length > 1 ? +probes[probes.length - 1].at - +probes[0].at : 0;
+		const options: Intl.DateTimeFormatOptions =
+			spanMs > 36 * 3_600_000
+				? { month: 'short', day: 'numeric' }
+				: spanMs > 6 * 3_600_000
+					? { month: 'short', day: 'numeric', hour: 'numeric' }
+					: spanMs > 5 * 60_000
+						? { hour: 'numeric', minute: '2-digit' }
+						: { hour: 'numeric', minute: '2-digit', second: '2-digit' };
+		return (value: Date | string | number) => new Date(value).toLocaleString(undefined, options);
+	});
 
 	const responseJson = $derived(
 		JSON.stringify(probe.body ?? { error: probe.error ?? 'No response from the endpoint' }, null, 2)
@@ -244,142 +280,189 @@
 				</CardContent>
 			</Card>
 
-			<!-- Response time — what the bars are -->
+			<!-- Latency and errors, as two grouped charts: one hover drives both. -->
 			<Tooltip.Provider delayDuration={150}>
-				<Card>
-					<CardHeader class="pb-3">
-						<div class="flex flex-wrap items-start justify-between gap-3">
-							<div class="space-y-1">
+				{#if probes.length > 1}
+					<ChartGroup pointer={{ tooltip: false }}>
+						<!-- Latency -->
+						<Card>
+							<CardHeader class="pb-3">
 								<CardTitle class="flex items-center gap-2 text-base">
-									<ChartBar class="size-4 text-muted-foreground" aria-hidden="true" />
-									Response time
+									<span class="size-2.5 rounded-full bg-primary" aria-hidden="true"></span>
+									Latency <span class="font-normal text-muted-foreground">(ms)</span>
 									<Tooltip.Root>
 										<Tooltip.Trigger
 											class="inline-flex size-6 items-center justify-center rounded-full hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-											aria-label="What are these bars?"
+											aria-label="What do these charts show?"
 										>
 											<Info class="size-3.5 text-muted-foreground" aria-hidden="true" />
 										</Tooltip.Trigger>
 										<Tooltip.Content side="top" class="max-w-75 text-xs leading-relaxed">
-											Each bar is one server-side probe to
+											Each point is one server-side probe to
 											<code class="rounded bg-muted px-1 py-0.5 font-mono">GET /api/v1/health</code>
-											every 30 s. Height = round-trip latency relative to the slowest probe in the window.
+											every 30 s. The top chart plots the round trip over time; the bottom one bars the
+											probes that failed. Hover either chart to inspect a probe.
 										</Tooltip.Content>
 									</Tooltip.Root>
 								</CardTitle>
+								<CardAction>
+									<Badge variant="outline" class="gap-1.5 font-mono text-xs tabular-nums">
+										<Timer class="size-3.5" aria-hidden="true" /> avg {avgLatency} ms
+									</Badge>
+								</CardAction>
+							</CardHeader>
+							<CardContent class="space-y-4">
 								<p class="text-sm text-muted-foreground">
-									Last {history.length} probes · 30 s interval · ~{Math.ceil(
-										(history.length * 30) / 60
-									)} min window · oldest → newest
+									Last {probes.length} probes · 30 s interval · ~{Math.ceil(probes.length / 2)} min window
 								</p>
-							</div>
-							<div class="flex flex-wrap items-center gap-2">
-								<Badge variant="outline" class="gap-1.5 font-mono text-xs tabular-nums">
-									<Timer class="size-3.5" aria-hidden="true" /> avg {avgLatency} ms
-								</Badge>
-								{#if failCount > 0}
-									<Badge variant="destructive" class="gap-1.5 text-xs">
-										<CircleX class="size-3.5" aria-hidden="true" />
-										{failCount} failed
-									</Badge>
-								{:else if history.length > 1}
-									<Badge variant="secondary" class="gap-1.5 text-xs">
-										<CircleCheck class="size-3.5" aria-hidden="true" /> all ok
-									</Badge>
+								<!-- Latency: the round trip each probe measured. The area breaks
+								     where a probe failed — there is no round trip to plot. -->
+								<AreaChart
+									data={probes}
+									x="at"
+									y="latency"
+									yDomain={[0, null]}
+									yNice
+									height={150}
+									padding={{ ...PLOT_PADDING, top: 8, bottom: 22 }}
+									tooltipContext={{ mode: 'bisect-x' }}
+								>
+									<Layer>
+										<Axis
+											placement="left"
+											grid
+											rule
+											format="metric"
+											tickMarks={false}
+											classes={{
+												tickLabel: 'fill-muted-foreground text-xs tabular-nums'
+											}}
+										/>
+										<Axis
+											placement="bottom"
+											rule
+											tickMarks={false}
+											tickSpacing={110}
+											format={axisTickFormat}
+											classes={{
+												tickLabel: 'fill-muted-foreground text-xs tabular-nums'
+											}}
+										/>
+										<Area
+											fill="var(--color-primary)"
+											fillOpacity={0.15}
+											line={{ class: 'stroke-2 stroke-primary' }}
+										/>
+										<Highlight points lines />
+									</Layer>
+
+									<ChartTooltip.Root x="data" y="data" anchor="bottom" yOffset={-8}>
+										{#snippet children({ data })}
+											<p class="font-medium tabular-nums">
+												{data.latency === null ? 'Failed — no response' : `${data.latency} ms`}
+											</p>
+											<p class="opacity-80">
+												{probeTime(data.at)} · {formatRelativeTime(data.at, now)}
+											</p>
+										{/snippet}
+									</ChartTooltip.Root>
+								</AreaChart>
+							</CardContent>
+						</Card>
+
+						<!-- Errors — one bar per failed probe. -->
+						<Card>
+							<CardHeader class="pb-3">
+								<CardTitle class="flex items-center gap-2 text-base">
+									<span class="size-2.5 rounded-full bg-destructive" aria-hidden="true"></span>
+									Errors
+								</CardTitle>
+								<CardAction>
+									{#if failCount > 0}
+										<Badge variant="destructive" class="gap-1.5 text-xs">
+											<CircleX class="size-3.5" aria-hidden="true" />
+											{failCount} failed
+										</Badge>
+									{:else}
+										<Badge variant="secondary" class="gap-1.5 text-xs">
+											<CircleCheck class="size-3.5" aria-hidden="true" /> none
+										</Badge>
+									{/if}
+								</CardAction>
+							</CardHeader>
+							<CardContent class="relative space-y-4">
+								<p class="text-sm text-muted-foreground">Each bar is one failed probe</p>
+								<BarChart
+									data={probes}
+									x="at"
+									xScale={scaleTime()}
+									xInterval={PROBE_INTERVAL}
+									y="failed"
+									yDomain={[0, 1]}
+									height={110}
+									padding={{ ...PLOT_PADDING, top: 6, bottom: 22 }}
+									tooltipContext={{ mode: 'bisect-x' }}
+								>
+									<Layer>
+										<Axis
+											placement="left"
+											rule
+											format="integer"
+											ticks={[0, 1]}
+											tickMarks={false}
+											classes={{
+												tickLabel: 'fill-muted-foreground text-xs tabular-nums'
+											}}
+										/>
+										<Axis
+											placement="bottom"
+											rule
+											tickMarks={false}
+											tickSpacing={110}
+											format={axisTickFormat}
+											classes={{
+												tickLabel: 'fill-muted-foreground text-xs tabular-nums'
+											}}
+										/>
+										<Bars class="fill-destructive" insets={{ x: 1 }} />
+										<Highlight lines />
+									</Layer>
+
+									<ChartTooltip.Root x="data" y="data" anchor="bottom" yOffset={-8}>
+										{#snippet children({ data })}
+											<p class="font-medium">
+												{data.failed ? 'Failed — no response' : 'Succeeded'}
+											</p>
+											<p class="opacity-80">
+												{probeTime(data.at)} · {formatRelativeTime(data.at, now)}
+											</p>
+										{/snippet}
+									</ChartTooltip.Root>
+								</BarChart>
+
+								{#if failCount === 0}
+									<!-- Zero failures is the good news — say it out loud rather than
+										     leaving an empty plot to be misread as a broken chart. -->
+									<p
+										class="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-sm font-medium text-muted-foreground"
+									>
+										No failed probes in this window
+									</p>
 								{/if}
-							</div>
-						</div>
-					</CardHeader>
-					<CardContent class="space-y-4">
-						{#if history.length > 1}
-							<div class="flex gap-3">
-								<!-- Y-axis scale -->
-								<div
-									class="flex h-14 flex-col justify-between py-0.5 text-right text-[10px] leading-none text-muted-foreground tabular-nums"
-									aria-hidden="true"
-								>
-									<span>{maxLatency} ms</span>
-									<span>{Math.round(maxLatency / 2)} ms</span>
-									<span>0</span>
-								</div>
-								<!-- Bars + grid — clustered, not stretched -->
-								<div class="relative flex-1 rounded-lg border bg-muted/30 px-3 py-2">
-									<div
-										class="absolute inset-x-3 inset-y-2 flex flex-col justify-between"
-										aria-hidden="true"
-									>
-										<div class="border-t border-dashed border-border/50"></div>
-										<div class="border-t border-dashed border-border/50"></div>
-										<div class="border-t border-border/30"></div>
-									</div>
-									<div
-										class="relative flex h-14 items-end justify-start gap-1"
-										role="img"
-										aria-label="Latency history: {history.length} probes, average {avgLatency} ms, max {maxLatency} ms, {failCount} failed"
-									>
-										{#each history as sample, i (i)}
-											<Tooltip.Root>
-												<Tooltip.Trigger
-													class="group flex items-end justify-center rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card focus-visible:outline-none"
-													aria-label={barLabel(sample, i)}
-												>
-													<span
-														class={cn(
-															'w-2 rounded-full transition-all duration-300',
-															sample.ok
-																? 'bg-primary group-hover:bg-primary/80 group-focus-visible:bg-primary'
-																: 'bg-destructive group-hover:bg-destructive/80',
-															i === history.length - 1 &&
-																sample.ok &&
-																'ring-1 ring-primary/30 ring-offset-1 ring-offset-card'
-														)}
-														style="height: {barHeight(sample)}px"
-													></span>
-												</Tooltip.Trigger>
-												<Tooltip.Content side="top" sideOffset={6} class="text-xs">
-													<p class="font-medium tabular-nums">
-														{sample.ok ? `${sample.latencyMs} ms` : 'Failed — no response'}
-													</p>
-													<p class="text-xs opacity-80">
-														{formatRelativeTime(sample.checkedAt, now)} · probe {i +
-															1}/{history.length}
-													</p>
-												</Tooltip.Content>
-											</Tooltip.Root>
-										{/each}
-									</div>
-								</div>
-							</div>
-							<div
-								class="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground"
-							>
-								<div class="flex flex-wrap items-center gap-4">
-									<span class="inline-flex items-center gap-1.5"
-										><span class="size-2 rounded-full bg-primary" aria-hidden="true"></span> success
-										({history.length - failCount})</span
-									>
-									<span class="inline-flex items-center gap-1.5"
-										><span class="size-2 rounded-full bg-destructive" aria-hidden="true"></span>
-										failed ({failCount})</span
-									>
-									<span class="hidden items-center gap-1 sm:inline-flex"
-										><Gauge class="size-3" aria-hidden="true" /> min {minLatency} ms · max {maxLatency}
-										ms</span
-									>
-								</div>
-								<span class="inline-flex items-center gap-1"
-									><Clock class="size-3" aria-hidden="true" /> newest on right →</span
-								>
-							</div>
-						{:else}
+							</CardContent>
+						</Card>
+					</ChartGroup>
+				{:else}
+					<Card>
+						<CardContent>
 							<div class="rounded-lg border border-dashed p-6 text-center">
 								<div class="mx-auto flex size-8 items-center justify-center rounded-full bg-muted">
-									<ChartBar class="size-4 text-muted-foreground" aria-hidden="true" />
+									<ChartArea class="size-4 text-muted-foreground" aria-hidden="true" />
 								</div>
 								<p class="mt-3 text-sm font-medium">Collecting round trips…</p>
 								<p class="mt-1 text-xs text-muted-foreground">
-									Need at least 2 probes (60 s) to draw the history. Bars show latency relative to
-									the slowest probe in the window.
+									Need at least 2 probes (60 s) to draw the charts. The first tracks round-trip
+									latency; the second bars the probes that failed.
 								</p>
 								<div class="mt-4 flex justify-center gap-1" aria-hidden="true">
 									{#each Array(8) as _, i (i)}
@@ -390,9 +473,9 @@
 									{/each}
 								</div>
 							</div>
-						{/if}
-					</CardContent>
-				</Card>
+						</CardContent>
+					</Card>
+				{/if}
 			</Tooltip.Provider>
 
 			<!-- Numbers -->

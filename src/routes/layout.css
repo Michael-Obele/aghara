@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn-svelte/tailwind.css';
+@import 'layerchart/shadcn-svelte.css';
 @import '@fontsource-variable/inter';
 
 @custom-variant dark (&:is(.dark *));
@@ -132,4 +133,15 @@
 	html {
 		@apply font-sans;
 	}
+}
+
+/* LayerChart tokens (health screen charts). The bundled shadcn bridge maps its
+   surfaces to shadcn-svelte v1 names (--card-background / --card-muted) that
+   this theme doesn't define, so point them at the palette used here instead.
+   `.lc-tooltip-root` is included because tooltips portal outside the chart. */
+.lc-root-container,
+.lc-tooltip-root {
+	--color-surface-100: var(--card);
+	--color-surface-200: var(--muted);
+	--color-surface-300: var(--border);
 }
