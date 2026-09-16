@@ -16,6 +16,8 @@
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { formatRelativeTime } from '$lib/time';
 	import {
+		AnnotationPoint,
+		AnnotationRange,
 		Area,
 		AreaChart,
 		Axis,
@@ -25,10 +27,12 @@
 		Highlight,
 		Layer,
 		LinearGradient,
-		Rule,
-		Tooltip as ChartTooltip
+		Spline,
+		Threshold,
+		Tooltip as ChartTooltip,
+		type ChartState
 	} from 'layerchart';
-	import { scaleTime } from 'd3-scale';
+	import { scaleLog, scaleTime } from 'd3-scale';
 	import { timeSecond } from 'd3-time';
 	import { curveMonotoneX } from 'd3-shape';
 	import {
@@ -68,7 +72,7 @@
 	// The charts read the server's shared window (services/health-watch.ts): the
 	// probe stream belongs to the app, not to this tab. A refresh — or a visitor who
 	// arrives after an outage — sees the same history everyone else sees.
-	type Probe = { at: Date; latency: number | null; failed: number };
+	type Probe = { at: Date; latency: number | null; failed: number; baseline: number | null };
 
 	// Page copy reads the watch's interval, so wording can never disagree with how
 	// often a probe actually happens. (The bars measure the spacing on screen
@@ -88,24 +92,102 @@
 		return at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 	}
 
+	/** The probes that answered — the only ones with a round trip to average. */
+	const okSamples = $derived(report.history.filter((sample) => sample.ok));
+	const avgLatency = $derived(
+		okSamples.length
+			? Math.round(okSamples.reduce((sum, sample) => sum + sample.latencyMs, 0) / okSamples.length)
+			: 0
+	);
+	const failCount = $derived(report.history.length - okSamples.length);
+	/**
+	 * The window's average, as a plottable series. The latency axis is logarithmic
+	 * (see the chart below) and a log scale has no zero, so a window in which
+	 * nothing answered has no baseline to draw — the chart falls back to a plain
+	 * area rather than to a broken scale.
+	 */
+	const baseline = $derived(okSamples.length > 0 ? Math.max(1, avgLatency) : null);
+	/** The slowest probe in the window — the one spike worth naming out loud. */
+	const worst = $derived(
+		okSamples.length ? okSamples.reduce((a, b) => (b.latencyMs > a.latencyMs ? b : a)) : null
+	);
+
 	const probes = $derived<Probe[]>(
 		report.history.map((sample) => ({
 			at: new Date(sample.at),
 			latency: sample.ok ? sample.latencyMs : null,
-			failed: sample.ok ? 0 : 1
+			failed: sample.ok ? 0 : 1,
+			baseline
 		}))
 	);
+	/** A failed probe has no round trip to plot, so the line and its band break there. */
+	const hasLatency = (probe: Probe) => probe.latency !== null;
+	/**
+	 * Equal rungs. On a log axis only a constant ratio puts the labels the same
+	 * distance apart — the obvious 10 / 50 / 100 / 500 / 1K set reads cramped,
+	 * spaced, cramped, spaced, because 50→100 is half the jump of 10→50. Doubling
+	 * makes every rung exactly 0.301 decades wide, so every gap is identical; a
+	 * window too tall for a 2× ladder steps by whole decades instead — equally
+	 * uniform, just coarser.
+	 */
+	const latencyTicks = $derived.by(() => {
+		const values = okSamples.map((sample) => Math.max(1, sample.latencyMs));
+		if (values.length === 0) return [10, 20, 40, 80, 160];
+		const low = Math.min(...values);
+		const high = Math.max(...values);
+		// Pick the finest ladder that still leaves the labels room to breathe: a 2×
+		// ladder over a 250× window is nine rungs, which crowds a plot this tall, so
+		// the ratio steps up to 4× or 10× until the count fits — every ratio keeps
+		// the gaps identical.
+		const span = Math.log10(high / low);
+		const ratio = [2, 4, 10].find((candidate) => span / Math.log10(candidate) <= 5) ?? 10;
+		const rungs: number[] = [];
+		// Start one rung below the fastest round trip, then climb past the slowest.
+		let value = 10 ** Math.floor(Math.log10(low));
+		while (value * ratio < low) value *= ratio;
+		for (; rungs.length < 8 && value <= high * ratio; value *= ratio) rungs.push(value);
+		return rungs;
+	});
+	/** The ladder is the axis — no rung sits below a plot line it cannot reach. */
+	const latencyDomain = $derived<[number, number]>([
+		latencyTicks[0] ?? 1,
+		latencyTicks[latencyTicks.length - 1] ?? 100
+	]);
 	// Bar width comes from the spacing actually on screen, never from the configured
 	// cadence: a window that spans a cadence change (the watch probed every minute
 	// until 2026-09-15) would otherwise paint 15-minute bars under one-minute
 	// samples. The median gap is the honest single width for the bulk of the window.
-	const barInterval = $derived.by(() => {
-		if (probes.length < 2) return timeSecond.every(Math.max(1, probeSeconds));
+	const probeGapMs = $derived.by(() => {
+		if (probes.length < 2) return Math.max(1, probeSeconds) * 1000;
 		const gaps = probes
 			.slice(1)
 			.map((probe, index) => +probe.at - +probes[index].at)
 			.sort((a, b) => a - b);
-		return timeSecond.every(Math.max(1, Math.round(gaps[Math.floor(gaps.length / 2)] / 1000)));
+		return Math.max(1, gaps[Math.floor(gaps.length / 2)]);
+	});
+	const barInterval = $derived(timeSecond.every(Math.max(1, Math.round(probeGapMs / 1000))));
+	/**
+	 * Contiguous runs of failed probes, each padded to one probe's width so that a
+	 * single miss is still a visible span. Drawn behind the latency area: without
+	 * them a failure is just a hole in the line, with nothing to say when it
+	 * started or how long it lasted.
+	 */
+	const outages = $derived.by<[Date, Date][]>(() => {
+		const runs: [number, number][] = [];
+		let start: number | null = null;
+		let end = 0;
+		for (const sample of report.history) {
+			if (sample.ok) {
+				if (start !== null) runs.push([start, end]);
+				start = null;
+			} else {
+				start ??= sample.at;
+				end = sample.at;
+			}
+		}
+		if (start !== null) runs.push([start, end]);
+		const half = probeGapMs / 2;
+		return runs.map(([from, to]) => [new Date(from - half), new Date(to + half)] as [Date, Date]);
 	});
 	/** How wide the window actually is — measured from the samples, never assumed. */
 	const windowMinutes = $derived(
@@ -197,20 +279,26 @@
 		return [api, ...checks];
 	});
 
-	const okSamples = $derived(report.history.filter((s) => s.ok));
-	const avgLatency = $derived(
-		okSamples.length
-			? Math.round(okSamples.reduce((a, b) => a + b.latencyMs, 0) / okSamples.length)
-			: 0
+	/** How wide the whole window is, in ms — where the tick format starts. */
+	const dataSpanMs = $derived(
+		probes.length > 1 ? +probes[probes.length - 1].at - +probes[0].at : 0
 	);
-	const failCount = $derived(report.history.filter((s) => !s.ok).length);
+
+	/** The width of a chart's x-domain, whatever a brush zoom has left it as. */
+	function domainSpanMs(domain: unknown): number | null {
+		if (!Array.isArray(domain) || domain.length < 2) return null;
+		const toMs = (value: unknown) =>
+			value instanceof Date ? value.getTime() : typeof value === 'number' ? value : NaN;
+		const span = Math.abs(toMs(domain[1]) - toMs(domain[0]));
+		return Number.isFinite(span) ? span : null;
+	}
 
 	// X-axis ticks, in the reader's locale: seconds only while the window is short
 	// enough that ticks land sub-minute (which would otherwise repeat a label), a
 	// bare "1:40 PM" for the usual hour or two, then a date once a bare time stops
-	// meaning anything.
-	const axisTickFormat = $derived.by(() => {
-		const spanMs = probes.length > 1 ? +probes[probes.length - 1].at - +probes[0].at : 0;
+	// meaning anything. The span it reads is the one on screen, not the one in the
+	// data — brush into a ten-minute slice and the labels have to come with you.
+	function tickFormatFor(spanMs: number) {
 		const options: Intl.DateTimeFormatOptions =
 			spanMs > 7 * 86_400_000
 				? { month: 'short', day: 'numeric' }
@@ -220,7 +308,19 @@
 						? { hour: 'numeric', minute: '2-digit' }
 						: { hour: 'numeric', minute: '2-digit', second: '2-digit' };
 		return (value: Date | string | number) => new Date(value).toLocaleString(undefined, options);
-	});
+	}
+
+	// The two charts share their x-domain through the ChartGroup, so a brush drag on
+	// either one zooms both. Reading the domain back is what lets each axis' tick
+	// labels follow the zoom instead of labelling the window they left behind.
+	let latencyChart = $state<ChartState>();
+	let errorsChart = $state<ChartState>();
+	const latencyTickFormat = $derived(
+		tickFormatFor(domainSpanMs(latencyChart?.xDomain) ?? dataSpanMs)
+	);
+	const errorsTickFormat = $derived(
+		tickFormatFor(domainSpanMs(errorsChart?.xDomain) ?? dataSpanMs)
+	);
 
 	const responseJson = $derived(
 		JSON.stringify(snapshot ?? { error: live?.error ?? 'No response from the endpoint' }, null, 2)
@@ -355,8 +455,12 @@
 											The server probes every {intervalLabel} —
 											<code class="rounded bg-muted px-1 py-0.5 font-mono">GET /api/v1/ping</code>
 											— liveness only, no database — and keeps every sample here, so this window is the
-											same one everybody sees. The top chart plots the round trip; the bottom one bars
-											the probes that failed. Hover either chart to inspect a probe.
+											same one everybody sees. The top chart plots the round trip on a logarithmic scale,
+											where doubling is one step wherever you are, so a 700 ms spike and a 30 ms baseline
+											both stay readable; its fill turns amber wherever the round trip ran slower than
+											this window's average. The bottom one bars the probes that failed, and any run of
+											them is shaded in the chart above. Hover either chart to inspect a probe; drag across
+											one to zoom both, and click to reset.
 										</Tooltip.Content>
 									</Tooltip.Root>
 								</CardTitle>
@@ -368,27 +472,45 @@
 							</CardHeader>
 							<CardContent class="space-y-4">
 								<p class="text-sm text-muted-foreground">
-									Last {probes.length} probes · ~{windowLabel} of history
+									Last {probes.length} probes · ~{windowLabel} of history. Drag to zoom, click to reset.
 								</p>
 								<!-- Latency: the round trip each probe measured. The area breaks
 								     where a probe failed — there is no round trip to plot. -->
 								<AreaChart
+									bind:context={latencyChart}
 									data={probes}
 									x="at"
-									y="latency"
-									yDomain={[0, null]}
-									yNice
-									height={170}
-									padding={{ ...PLOT_PADDING, top: 10, bottom: 22 }}
+									y={['latency', 'baseline']}
+									yScale={scaleLog()}
+									yDomain={latencyDomain}
+									brush
+									height={190}
+									padding={{ ...PLOT_PADDING, top: 26, bottom: 22 }}
 									tooltipContext={{ mode: 'bisect-x' }}
 								>
 									<Layer>
+										<!-- Failures first, so the line paints over them: an outage then
+										     reads as the span it happened in plus the hole it left, not as
+										     an unexplained gap. -->
+										{#each outages as range (range[0].getTime())}
+											<AnnotationRange
+												x={range}
+												fill="var(--color-destructive)"
+												label={outages.length === 1 ? 'outage' : undefined}
+												labelPlacement="top"
+												props={{
+													rect: { fillOpacity: 0.18 },
+													label: { class: 'fill-destructive font-medium' }
+												}}
+											/>
+										{/each}
 										<!-- Grid lines only, no axis rule: the plot's own edges are the frame. -->
 										<Axis
 											placement="left"
 											grid={{ class: '[--stroke-color:var(--color-border)]' }}
-											format="metric"
+											format="integer"
 											tickMarks={false}
+											ticks={latencyTicks}
 											classes={{
 												tickLabel: 'fill-muted-foreground text-xs tabular-nums'
 											}}
@@ -398,37 +520,75 @@
 											rule
 											tickMarks={false}
 											tickSpacing={110}
-											format={axisTickFormat}
+											format={latencyTickFormat}
 											classes={{
 												tickLabel: 'fill-muted-foreground text-xs tabular-nums'
 											}}
 										/>
-										<!-- Gradient rather than a flat wash, and a monotone curve so a
-										     spike reads as a hump instead of a needle. `LinearGradient`
-										     defaults to Tailwind's gradient variables, which the classes
-										     set; it spans the plot (not the area's own box) and stops at
-										     10% rather than transparent, because one 700 ms spike owns the
-										     area's bounding box while the typical round trip sits near the
-										     baseline — anchored to the area, the whole fill would vanish. -->
-										<LinearGradient
-											class="from-primary/45 to-primary/10"
-											vertical
-											units="userSpaceOnUse"
-										>
-											{#snippet children({ gradient })}
-												<Area
-													curve={curveMonotoneX}
-													line={{ class: 'stroke-2 stroke-primary' }}
-													fill={gradient}
-												/>
-											{/snippet}
-										</LinearGradient>
-										<!-- The average round trip: every spike now reads as above or below
-										     normal at a glance. The header badge carries the number. -->
-										<Rule
-											y={avgLatency}
-											class="stroke-muted-foreground/50 [stroke-dasharray:3_3]"
-										/>
+										<!-- The round trip against the window's average, as two tinted
+										     bands rather than one flat fill: the colour changes where the
+										     line crosses the average, so "slower than normal" is something
+										     the reader sees instead of subtracts. The log axis is what
+										     keeps both bands on screen — linearly, one 700 ms spike owns
+										     the whole plot and the typical round trip collapses into the
+										     bottom few pixels. -->
+										{#if baseline !== null}
+											<Threshold curve={curveMonotoneX} defined={hasLatency}>
+												{#snippet below({ curve })}
+													<Area
+														y0="latency"
+														y1="baseline"
+														{curve}
+														defined={hasLatency}
+														class="fill-primary/25"
+													/>
+												{/snippet}
+												{#snippet above({ curve })}
+													<Area
+														y0="latency"
+														y1="baseline"
+														{curve}
+														defined={hasLatency}
+														class="fill-warning/45"
+													/>
+												{/snippet}
+												{#snippet children({ curve })}
+													<Spline
+														y="baseline"
+														{curve}
+														class="stroke-muted-foreground/50 [stroke-dasharray:3_3]"
+													/>
+													<Spline
+														y="latency"
+														{curve}
+														defined={hasLatency}
+														class="stroke-primary stroke-2"
+													/>
+												{/snippet}
+											</Threshold>
+										{:else}
+											<Area
+												curve={curveMonotoneX}
+												defined={hasLatency}
+												line={{ class: 'stroke-2 stroke-primary' }}
+												class="fill-primary/25"
+											/>
+										{/if}
+										<!-- The window's slowest probe, named by number: the one point a
+										     reader would otherwise have to hover to identify. -->
+										{#if worst}
+											<AnnotationPoint
+												x={new Date(worst.at)}
+												y={worst.latencyMs}
+												r={4}
+												label={`${worst.latencyMs} ms`}
+												labelPlacement="top"
+												props={{
+													circle: { class: 'fill-warning stroke-card' },
+													label: { class: 'fill-warning text-xs font-medium' }
+												}}
+											/>
+										{/if}
 										<Highlight
 											points={{ r: 4, class: 'fill-primary stroke-card', strokeWidth: 2 }}
 											lines={{ class: 'stroke-muted-foreground/40 [stroke-dasharray:3_3]' }}
@@ -478,14 +638,16 @@
 							<CardContent class="relative space-y-4">
 								<p class="text-sm text-muted-foreground">Each bar is one failed probe</p>
 								<BarChart
+									bind:context={errorsChart}
 									data={probes}
 									x="at"
 									xScale={scaleTime()}
 									xInterval={barInterval}
 									y="failed"
 									yDomain={[0, 1]}
-									height={110}
-									padding={{ ...PLOT_PADDING, top: 6, bottom: 22 }}
+									brush
+									height={72}
+									padding={{ ...PLOT_PADDING, top: 6, bottom: 20 }}
 									tooltipContext={{ mode: 'bisect-x' }}
 								>
 									<Layer>
@@ -504,7 +666,7 @@
 											rule
 											tickMarks={false}
 											tickSpacing={110}
-											format={axisTickFormat}
+											format={errorsTickFormat}
 											classes={{
 												tickLabel: 'fill-muted-foreground text-xs tabular-nums'
 											}}
