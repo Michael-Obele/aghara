@@ -24,10 +24,13 @@
 		ChartGroup,
 		Highlight,
 		Layer,
+		LinearGradient,
+		Rule,
 		Tooltip as ChartTooltip
 	} from 'layerchart';
 	import { scaleTime } from 'd3-scale';
 	import { timeSecond } from 'd3-time';
+	import { curveMonotoneX } from 'd3-shape';
 	import {
 		Activity,
 		ChartArea,
@@ -67,15 +70,15 @@
 	// arrives after an outage — sees the same history everyone else sees.
 	type Probe = { at: Date; latency: number | null; failed: number };
 
-	// Page copy and the bars' width both read the watch's interval, so they can
-	// never disagree about how often a probe actually happens.
+	// Page copy reads the watch's interval, so wording can never disagree with how
+	// often a probe actually happens. (The bars measure the spacing on screen
+	// instead — see `barInterval` — because a window can outlive a cadence change.)
 	const probeSeconds = $derived(Math.round(report.probeIntervalMs / 1000));
 	// Durations come from pretty-ms (already a dependency, and dependency-free
 	// itself) rather than hand-rolled thresholds — it keeps every unit, so an
 	// hour and a half never collapses into a rounded-down "1 hour".
 	/** "15 minutes" — how far apart probes are, straight from the watch's interval. */
 	const intervalLabel = $derived(prettyMilliseconds(report.probeIntervalMs, { verbose: true }));
-	const probeInterval = $derived(timeSecond.every(Math.max(1, probeSeconds)));
 	// Shared by both charts so the probes line up column-for-column across the two
 	// rows; each chart adds its own top/bottom room for the axes it carries.
 	const PLOT_PADDING = { left: 44, right: 8 };
@@ -92,6 +95,18 @@
 			failed: sample.ok ? 0 : 1
 		}))
 	);
+	// Bar width comes from the spacing actually on screen, never from the configured
+	// cadence: a window that spans a cadence change (the watch probed every minute
+	// until 2026-09-15) would otherwise paint 15-minute bars under one-minute
+	// samples. The median gap is the honest single width for the bulk of the window.
+	const barInterval = $derived.by(() => {
+		if (probes.length < 2) return timeSecond.every(Math.max(1, probeSeconds));
+		const gaps = probes
+			.slice(1)
+			.map((probe, index) => +probe.at - +probes[index].at)
+			.sort((a, b) => a - b);
+		return timeSecond.every(Math.max(1, Math.round(gaps[Math.floor(gaps.length / 2)] / 1000)));
+	});
 	/** How wide the window actually is — measured from the samples, never assumed. */
 	const windowMinutes = $derived(
 		probes.length > 1
@@ -363,15 +378,15 @@
 									y="latency"
 									yDomain={[0, null]}
 									yNice
-									height={150}
-									padding={{ ...PLOT_PADDING, top: 8, bottom: 22 }}
+									height={170}
+									padding={{ ...PLOT_PADDING, top: 10, bottom: 22 }}
 									tooltipContext={{ mode: 'bisect-x' }}
 								>
 									<Layer>
+										<!-- Grid lines only, no axis rule: the plot's own edges are the frame. -->
 										<Axis
 											placement="left"
-											grid
-											rule
+											grid={{ class: '[--stroke-color:var(--color-border)]' }}
 											format="metric"
 											tickMarks={false}
 											classes={{
@@ -388,22 +403,52 @@
 												tickLabel: 'fill-muted-foreground text-xs tabular-nums'
 											}}
 										/>
-										<Area
-											fill="var(--color-primary)"
-											fillOpacity={0.15}
-											line={{ class: 'stroke-2 stroke-primary' }}
+										<!-- Gradient rather than a flat wash, and a monotone curve so a
+										     spike reads as a hump instead of a needle. `LinearGradient`
+										     defaults to Tailwind's gradient variables, which the classes
+										     set; it spans the plot (not the area's own box) and stops at
+										     10% rather than transparent, because one 700 ms spike owns the
+										     area's bounding box while the typical round trip sits near the
+										     baseline — anchored to the area, the whole fill would vanish. -->
+										<LinearGradient
+											class="from-primary/45 to-primary/10"
+											vertical
+											units="userSpaceOnUse"
+										>
+											{#snippet children({ gradient })}
+												<Area
+													curve={curveMonotoneX}
+													line={{ class: 'stroke-2 stroke-primary' }}
+													fill={gradient}
+												/>
+											{/snippet}
+										</LinearGradient>
+										<!-- The average round trip: every spike now reads as above or below
+										     normal at a glance. The header badge carries the number. -->
+										<Rule
+											y={avgLatency}
+											class="stroke-muted-foreground/50 [stroke-dasharray:3_3]"
 										/>
-										<Highlight points lines />
+										<Highlight
+											points={{ r: 4, class: 'fill-primary stroke-card', strokeWidth: 2 }}
+											lines={{ class: 'stroke-muted-foreground/40 [stroke-dasharray:3_3]' }}
+										/>
 									</Layer>
 
 									<ChartTooltip.Root x="data" y="data" anchor="bottom" yOffset={-8}>
 										{#snippet children({ data })}
-											<p class="font-medium tabular-nums">
-												{data.latency === null ? 'Failed — no response' : `${data.latency} ms`}
-											</p>
-											<p class="opacity-80">
+											<ChartTooltip.Header>
 												{probeTime(data.at)} · {formatRelativeTime(data.at, now)}
-											</p>
+											</ChartTooltip.Header>
+											<ChartTooltip.List>
+												<ChartTooltip.Item
+													label="round trip"
+													value={data.latency === null ? 'no response' : `${data.latency} ms`}
+													color={data.latency === null
+														? 'var(--color-destructive)'
+														: 'var(--color-primary)'}
+												/>
+											</ChartTooltip.List>
 										{/snippet}
 									</ChartTooltip.Root>
 								</AreaChart>
@@ -436,7 +481,7 @@
 									data={probes}
 									x="at"
 									xScale={scaleTime()}
-									xInterval={probeInterval}
+									xInterval={barInterval}
 									y="failed"
 									yDomain={[0, 1]}
 									height={110}
@@ -464,18 +509,32 @@
 												tickLabel: 'fill-muted-foreground text-xs tabular-nums'
 											}}
 										/>
-										<Bars class="fill-destructive" insets={{ x: 1 }} />
-										<Highlight lines />
+										<LinearGradient
+											class="from-destructive to-destructive/35"
+											vertical
+											units="userSpaceOnUse"
+										>
+											{#snippet children({ gradient })}
+												<Bars fill={gradient} radius={4} rounded="top" insets={{ x: 1 }} />
+											{/snippet}
+										</LinearGradient>
+										<!-- The hovered probe's own column, so a failure reads against its
+										     neighbours instead of floating on its own. -->
+										<Highlight bar={{ class: 'fill-muted-foreground/10' }} />
 									</Layer>
 
 									<ChartTooltip.Root x="data" y="data" anchor="bottom" yOffset={-8}>
 										{#snippet children({ data })}
-											<p class="font-medium">
-												{data.failed ? 'Failed — no response' : 'Succeeded'}
-											</p>
-											<p class="opacity-80">
+											<ChartTooltip.Header>
 												{probeTime(data.at)} · {formatRelativeTime(data.at, now)}
-											</p>
+											</ChartTooltip.Header>
+											<ChartTooltip.List>
+												<ChartTooltip.Item
+													label="outcome"
+													value={data.failed ? 'no response' : 'ok'}
+													color={data.failed ? 'var(--color-destructive)' : 'var(--color-primary)'}
+												/>
+											</ChartTooltip.List>
 										{/snippet}
 									</ChartTooltip.Root>
 								</BarChart>

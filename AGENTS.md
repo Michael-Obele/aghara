@@ -37,7 +37,8 @@ SVC --> DB (Drizzle) + PROV (providers/*)
 ### Quality Gate
 
 - **Formatting**: Format only edited files. `bunx prettier --write <file>` then `bunx prettier --check <file>`. Never full-project format.
-- **Typecheck**: Run `bun run check` (`svelte-kit sync && svelte-check`) immediately after substantive edits.
+- **Typecheck**: Run `bun run check` (`bunx --bun svelte-kit sync && bunx --bun svelte-check`) immediately after substantive edits.
+- **Always run SvelteKit's CLI under Bun** — never bare `svelte-kit …` / `npx …` / `node_modules/.bin/svelte-kit …`. `svelte-kit sync` rewrites the generated route manifest (`.svelte-kit/generated/client/{app.js,nodes/*.js}`), and Node and Bun traverse `src/routes` in different orders (Node sorts entries alphabetically, Bun uses filesystem order), so a Node-run sync renumbers the node wrappers behind the running dev server: SSR keeps emitting its own `node_ids`, the browser loads a different component for that index, and a route renders the wrong page — even on a cold load — until the files are realigned (sveltejs/kit#15313, still open upstream). Running `bun run check` again realigns them, so a stray Node-run sync no longer needs a dev-server restart.
 - **Errors**: Fix errors immediately; warnings only may be ignored. Use `<svelte:boundary>` for async loading/error states.
 
 ### Package Management
